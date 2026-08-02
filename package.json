@@ -4,6 +4,18 @@
   "private": true,
   "author": "Hearth",
   "description": "A Windows-first working home for projects, agents, terminals, memory, and useful things.",
+  "homepage": "https://github.com/spezzuti/Hearth#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spezzuti/Hearth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/spezzuti/Hearth/issues"
+  },
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "type": "module",
   "main": "dist-main/main/main.cjs",
   "scripts": {

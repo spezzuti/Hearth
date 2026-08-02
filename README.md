@@ -1,195 +1,222 @@
 # Hearth
 
-Hearth is a Windows-first working home for projects, agents, terminals, memory, and useful things.
+**A Windows-first working home for Claude Code, projects, agents, memory, and the loose material around real work.**
 
-This repository contains the continuity, Workshop, and Project Surface vertical slices:
+Hearth is an experimental desktop environment for people who direct AI coding work more often than
+they write every line themselves. It keeps the technical Claude Code workstream visible, gives the
+user a conversational Maker beside it, and connects that work to project review, independent
+critique, saved research, ideas, decisions, and return points.
 
-- Sandboxed Electron renderer
-- Separate local core utility process
-- SQLite WAL persistence and startup backups
-- Home, Living Room, and Study
-- Truthful Return Packs
-- Natural local Maker and Companion conversation
-- Universal capture
-- Leave, renderer reload, and relaunch continuity
-- A real ConPTY terminal rendered with xterm.js
-- Windows PowerShell and feature-detected Claude Code launch
-- Named Claude Code sessions whose resumability is only claimed after real input
-- An explicit user/Maker terminal seat: when Maker has it, his chat receives a bounded transient
-  view of recent output while terminal instructions still require a deliberate handoff
-- Bounded Maker-to-Claude instruction relay
-- Room navigation and renderer reload without terminating the PTY
-- Search, guarded links, clipboard integration, resize/reflow, and focus mode
-- Intent-following terminal focus: start, resume, taking control, focus mode, search Escape, and one
-  click on the terminal surface all return the typing caret without an extra activation click
-- Fast discovery of repository and Claude/Codex projects under the Windows home folder
-- A read-only Project room with search, bounded file previews, Git change review, and text wrapping
-- Persistent working-project selection shared by Home, Study, and new Workshop sessions
-- Project-aware PowerShell and named Claude Code startup
-- Path containment, symlink refusal, binary detection, and file/diff size limits
-- Integrated native Windows controls without a separate title or menu band
-- Packaged-build project repair that rejects the install directory and selects a real repo
-- Explicit project, file, and diff handoffs to Maker or Critic
-- A separate Critic conversation with recognizable skepticism and no terminal ownership
-- A persistent, project-separated Living Room transcript shared by the residents the user visibly
-  calls into the discussion, without leaking their private room conversations
-- One-resident conversation, two-to-four-person Roundtable, and a bounded adversarial Pressure Test
-  that runs Maker, Critic, optional Librarian evidence, and Companion synthesis in a visible order
-- Immediate user-message posting, streamed attributed resident turns, explicit cancellation, and
-  reload/relaunch continuity for household discussions
-- Searchable, renameable Living Room discussions with reversible put-away/restore, plus deliberate
-  decision drafts for Maker, Workshop, or a project-connected note
-- Explicit Library, Study, Workshop, and Home context cards when something is brought into the room;
-  only the visible bounded summary is shared with the residents who were called
-- Living Room project grounding limited to a bounded visible summary, with no terminal transcript or
-  terminal authority; house-only discussions run outside the selected repository
-- Namespaced Codex ACP sessions so Critic's Living Room turns cannot inherit Study history
-- Bounded evidence summaries and review flags without persisting raw source or terminal output
-- Clear Workshop language distinguishing Maker's recent-terminal sight from permission to send an
-  approved instruction into Claude Code
-- Transient terminal observations for ready, working, attention, and failed states
-- Verified clipboard writes with honest Windows-unavailable feedback
-- Deliberate Opus-generated Maker proposals with editable Claude Code instructions
-- Persistent proposal rationale, expected scope, and candid risk/approval notes
-- Explicit save, discard, terminal-ownership, and pass gates for proposed work
-- Bounded Claude Code execution reports attached to the approved handoff
-- Changed-file, validation, unresolved-concern, and decision fields without persisted terminal output
-- Execution reports available to Maker as explicitly unverified evidence
-- Git corroboration that separates Claude-reported paths from current working-tree evidence
-- One-click execution-report and bounded-diff handoff to independent Critic review
-- A real Library room backed by universal capture, search, project connections, editable names,
-  notes, tags, pinning, reversible archiving, and exact-link deduplication
-- First-class Library collections with visible counts, one-click shelf filtering, editable filing,
-  an honest Unfiled state, and separate project connections and tags
-- A deliberate, read-only PersonalOS Stacks bridge with a review step, active-link filtering,
-  collection preservation, exact-URL deduplication, and safe repeat imports
-- Optional guarded page-title and description enrichment without private-network requests
-- A four-hour cached GitHub discovery shelf with separate curated, dependable, emerging, and skill
-  views
-- Repo relevance shaped by the selected project, saved Library collections and tags, and explicit
-  taste feedback instead of popularity alone
-- Fresh Claude Code and Codex skill searches with visible evidence checks, specialist-noise
-  suppression, saved-link exclusion, and honest stale/offline states
-- Provider-backed Librarian conversation over bounded catalog retrieval, with a fast local fallback
-- Reversible **Not for me** feedback and a Hidden shelf for current recommendations
-- Modest, explainable discovery ranking signals learned from what the user keeps or dismisses
-- A real Studio room where ideas can rest, be deliberately pursued, be let go, and return later
-- Canonical capture routing: links live in Library, ideas live in Studio, and notes remain loose
-  or connect to a real project without becoming duplicate records
-- Lightweight `@idea`, `@note`, `@ProjectName`, and `#tag` capture language with bare-link routing
-- A calm Studio notebook for loose and connected notes, plus contextual Notes inside each project
-- Whole-house search across notes, ideas, links, tags, project relationships, discovered projects,
-  and approved House Memory
-- A visible, correctable House Memory drawer for explicit preferences, workflows, tools, project
-  habits, and resident relationships
-- Reversible memory suggestions drawn only from bounded session metadata, never conversation text
-  or terminal output
-- House-, project-, and resident-scoped memory that reaches residents only after approval and never
-  expands file, terminal, edit, or execution authority
-- Database-backed retrieval beyond the recent working set, including material put away or let go
-- Persistent, reversible idea decisions without scores, streaks, automatic tasks, or silent project creation
-- A separate, persistent Maker conversation for each pursued idea, with immediate message posting,
-  streamed replies, and no implied terminal or build authority
-- Explicit Studio promotion into a discovered project without writing to that project
-- Deliberate new-project creation under `Hearth Projects`, limited to a local marker and an
-  `IDEA.md` origin file before the user chooses any tools or terminal
-- Explicit editing for one selected, bounded UTF-8 project file at a time
-- Local drafting followed by an exact line review, format and scope checks, and a separate Apply gate
-- Stale-file refusal so Hearth never knowingly overwrites work changed after the review
-- Atomic writes with private original-file backups and restart-safe Undo
-- One-file Maker drafts from a deliberately selected preview and plain-language request
-- Independent Critic review over the original and proposed file without Maker conversation leakage
-- Resident proposals remain memory-only, tool-free, and subject to the same exact user Apply gate
-- Local bounded filename and source search across deliberately allowlisted project text
-- A six-file evidence shelf with visible snippets, explicit selection, and separate resident handoffs
-- Persisted evidence paths without persisted raw source; contents are refreshed only for relevant turns
-- A real Archive room projected from Return Packs, put-away Library items, let-go ideas, closed
-  handoffs, and Hearth file-edit recovery
-- Searchable, copyable Archive detail without a noisy activity feed or duplicated history table
-- Explicit two-step permanent removal for every Archive record, with file-specific warnings and
-  no authority to delete project files
-- Bounded automatic startup-backup retention that keeps the newest eight snapshots while
-  preserving manual backups
-- Truthful recovery actions: Library and Studio restoration plus confirmed, verified file-edit Undo
-- Historical Return Packs can be viewed transiently on Home without replacing current project or
-  process truth
-- Explicit Archive orientation into a related project, exact bounded file, or Workshop
-- Project-switch confirmation that leaves live terminals and resident contexts untouched
-- An opt-in, loopback-only Companion service with expiring pairing and session revocation
-- Optional private tailnet HTTPS sharing through a detected Tailscale installation, never Funnel
-- Conflict-safe use of a dedicated private HTTPS port without replacing existing Serve routes
-- A responsive phone surface for status, Return Packs, captures, Companion conversation, and
-  collapsible secondary history
-- Real bounded Opus conversation for Companion with an explicit local-fallback label
-- Immediate phone-to-desktop synchronization for captures and completed Companion turns
-- A phone decision surface for reversible **Pursue**, **Let rest**, and **Let go** idea choices
-- Read-only mobile summaries of active Maker plans and execution reports without paths or file lists
-- Quiet Workshop-attention banners and browser-title state while the Companion page is open
-- Immediate phone-to-desktop synchronization for idea decisions
-- Silent Windows attention while Hearth is minimized for Workshop input and finished resident replies
-- Opt-in minimized alerts for phone captures and idea decisions, folded behind **Alerts** on Home
-- Notification click-through to Workshop, Study, Library, Studio, or Home without changing work
-- Native Windows tray residency: **X** hides Hearth, a tray click restores it, and **Quit Hearth**
-  performs the full shutdown
-- Launching Hearth again restores the hidden working home rather than opening a competing instance
-- Separate installed and development Windows identities so Electron tooling cannot contaminate
-  Hearth's taskbar grouping
-- Hearth's own ICO is assigned explicitly to the executable, window, taskbar relaunch identity, and
-  packaged tray
-- Distinct Maker, Librarian, and Critic portraits carried consistently through Home and their rooms
-- First-class Maker and Librarian presence with larger room portraits and restrained live states
-- A responsive Maker status lockup with the complete two-line model name and an evenly padded
-  online light from the widest Workshop down to Hearth's minimum window
-- A project-bound Maker conversation and managed Claude session, so changing working projects
-  restores that project's own chat instead of carrying another project's thread across the house
-- Claude Code-style Workshop interruption: sending a new direction while Maker is working cancels
-  the active turn, marks it Interrupted, waits for the ACP session to release, and continues in that
-  same project session without running two tool turns at once
-- Live Claude Code context-token counts plus retained session input/output usage in Workshop
-- A finished code-native Companion character with quiet idle, attentive, thinking, and reply states
-- No Companion routes for terminals, project files, edits, execution, ownership, or project switching
+![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-Companion remote access requires Tailscale on the PC and phone, remains off until explicitly shared,
-and still requires Hearth pairing. Resident portraits are bundled local artwork; Hearth does not
-fetch or replace them at runtime.
+> **Project status:** functional pre-1.0 prototype, version 0.47.2. Hearth is Windows x64 only and is
+> being developed in public from a working personal system. It is not yet a supported commercial
+> product.
 
-## Run
+## Why Hearth exists
+
+AI-assisted work usually fragments across a terminal, file explorer, Git client, bookmarks, notes,
+chat windows, and a half-remembered explanation of where the last session stopped. Hearth tests a
+different idea: the product should preserve the thread around the work without hiding the work
+itself.
+
+The core workflow is intentionally not an autonomous everything-app:
+
+1. **Orient on Home.** See the current project, truthful process state, last approved action, and a
+   recommended next move.
+2. **Review in Study.** Browse bounded project files and diffs, assemble explicit evidence, and talk
+   separately with Maker or Critic.
+3. **Build in Workshop.** Run a managed Claude Code session with plans, tool activity, diffs, token
+   use, modes, effort, permissions, and interruption visible in one workstream.
+4. **Discuss in Living Room.** Call one resident, gather a roundtable, or run a bounded adversarial
+   pressure test without leaking private conversations or raw terminal output.
+5. **Keep the surrounding material.** Library owns links and research, Studio owns ideas and loose
+   notes, Archive owns recoverable history, and Return Packs explain where work stopped.
+
+## What is different here
+
+- **Claude Code remains visible.** Hearth does not reduce an agent run to a spinner and a final
+  paragraph. Workshop renders the technical stream while Maker supplies the short human version.
+- **Conversation and execution are distinct.** Maker can be personable without pretending every chat
+  message ran a command. Tool authority exists only on the managed Workshop surface.
+- **Residents have separate perspectives and context.** Maker builds, Critic challenges, Librarian
+  retrieves, and Companion synthesizes. Their private histories are not silently merged.
+- **Handoffs are deliberate and bounded.** Project evidence, Living Room context, edit proposals,
+  terminal observations, and execution reports each cross an explicit boundary.
+- **Continuity is product state.** Project selection, conversations, return points, decisions, and
+  managed session summaries survive renderer reloads and relaunches without claiming that a dead
+  process is still alive.
+- **The interface is designed as a place to return to.** The room metaphor shapes information
+  architecture and visual tone without becoming a virtual house the user must walk through.
+
+## Rooms
+
+| Room | Purpose |
+| --- | --- |
+| **Home** | Orientation, Return Packs, household availability, memory, and universal capture |
+| **Study** | Read-only project browsing, Git review, bounded evidence, one-file edit review, Maker, and Critic |
+| **Workshop** | Managed Claude Code workstream plus an optional first-class ConPTY terminal |
+| **Living Room** | Persistent one-to-one conversations, roundtables, and pressure tests |
+| **Library** | Saved links, collections, search, discovery, taste feedback, and Librarian retrieval |
+| **Studio** | Ideas, loose or project-connected notes, deliberate pursuit, and project promotion |
+| **Archive** | Searchable Return Packs, released material, closed handoffs, and verified recovery |
+
+<table>
+  <tr>
+    <td><img src="docs/images/living-room.png" alt="Living Room pressure test with four residents" /></td>
+    <td><img src="docs/images/studio.png" alt="Studio idea shelf" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Shared decisions without merged private histories</strong></td>
+    <td align="center"><strong>Ideas can rest without becoming tasks</strong></td>
+  </tr>
+</table>
+
+The optional Companion surface is intentionally smaller on mobile: status, captures, reversible
+decisions, recent reports, and conversation—no terminal, project files, edits, or execution controls.
+
+<p align="center">
+  <img src="docs/images/mobile.png" width="360" alt="Hearth Companion mobile surface" />
+</p>
+
+## Claude Code and resident routing
+
+Hearth uses the Agent Client Protocol adapters rather than screen-scraping a terminal session.
+
+| Resident | Normal provider | Fallback | Authority |
+| --- | --- | --- | --- |
+| **Maker** | Claude Code / Opus | Bounded local conversation | Tools only in managed Workshop |
+| **Critic** | Codex via ACP | Claude Code / Fable, then local | Read-only review; never owns the terminal |
+| **Librarian** | Claude Code / Opus | Local catalog retrieval | No install, clone, save, or edit tools |
+| **Companion** | Claude Code / Opus | Local conversation | No project, terminal, edit, or execution routes |
+
+Workshop keeps one managed Claude session per project. A new user message sent while Maker is active
+cancels the current ACP turn, waits for it to release the session, marks it **Interrupted**, and then
+sends the replacement direction through the same session. Hearth never runs two managed tool turns
+concurrently.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    UI["Sandboxed React renderer"] -->|"named preload API"| MAIN["Electron main"]
+    MAIN -->|"validated messages"| CORE["Local core utility process"]
+    CORE --> DB["SQLite WAL + backups"]
+    CORE --> PROJECTS["Bounded project review"]
+    CORE --> PTY["ConPTY terminal"]
+    CORE --> AGENTS["Resident provider router"]
+    AGENTS --> CLAUDE["Claude Code ACP"]
+    AGENTS --> CODEX["Codex ACP"]
+    PHONE["Paired Companion client"] -->|"loopback or private tailnet HTTPS"| MAIN
+```
+
+The renderer has no Node integration or raw filesystem API. Project paths, terminal input, links,
+clipboard operations, provider calls, and destructive archive actions cross narrow validated
+contracts. Raw terminal output is memory-bounded and is not written to the database.
+
+See [Architecture](docs/architecture.md) for the process model and data flow, and
+[Security Notes](docs/security-notes.md) for the detailed trust boundaries.
+
+## Requirements
+
+Required for development:
+
+- Windows 10 or 11, x64
+- Node.js 24.x and npm 11.x
+- Git for Windows
+
+Optional integrations:
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code/getting-started), installed and
+  authenticated, for live Maker, Librarian, Companion, and Fable fallback reasoning
+- Codex authentication for the independent ACP Critic
+- Tailscale for private remote Companion access
+- A GitHub token already present as `GITHUB_TOKEN` or `GH_TOKEN` for higher discovery rate limits;
+  the token is never sent to the renderer
+
+Hearth remains explorable without model credentials by using its explicit local-provider mode.
+
+## Quick start
 
 ```powershell
-npm install
+git clone https://github.com/spezzuti/Hearth.git
+cd Hearth
+npm ci
 npm run dev
 ```
 
-For a production-style local run:
+To explore the complete interface without invoking Claude Code or Codex:
 
 ```powershell
-npm start
+$env:HEARTH_AGENT_PROVIDER = "local"
+npm run dev
 ```
 
-## Verify
+Development data is isolated under `%APPDATA%\Hearth Development`. A packaged installation uses
+Electron's normal Hearth application-data directory. Hearth does not store project files in its
+database.
 
-```powershell
-npm run verify
-```
+## Commands
 
-The end-to-end tests launch the real Electron application and prove continuity, shared Living Room
-conversation, Roundtable and Pressure Test orchestration, context handoffs, discussion management,
-decision drafting, Library curation,
-Project Surface, agent handoffs, multi-file evidence search and selection, Critic review, Workshop
-observation, native window controls, project discovery, file preview, Git diff review, compact
-layouts, project-aware terminal startup, Studio conversation and promotion, bounded user and Maker
-file-edit review, independent Critic challenge, apply and recovery, Archive search, source-specific
-restoration, historical Home orientation, exact archived-file reopening, terminal-preserving project
-switches, terminal input, paste when the Windows clipboard is available, long-line reflow, links,
-renderer reattachment, searchable and scoped House Memory, explicit stop, full exit, and truthful
-relaunch. The packaged smoke test
-separately proves that an installed build selects the source project rather than its own executable
-folder.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the renderer, desktop bundles, and Electron in watch mode |
+| `npm start` | Build and launch a production-style local instance |
+| `npm run typecheck` | Run the TypeScript contract check |
+| `npm test` | Run the unit suite |
+| `npm run test:e2e` | Build and run the real Electron continuity suite |
+| `npm run verify` | Typecheck, unit tests, and Electron tests |
+| `npm run package:dir` | Build an unpacked Windows application |
+| `npm run package` | Build the Windows NSIS installer |
 
-## Safety
+The current release gate covers 103 unit tests across 14 files and 13 serial Electron scenarios,
+including renderer reload, relaunch, ConPTY lifecycle, project containment, bounded edits, resident
+handoffs, Living Room orchestration, compact layouts, archive recovery, and the managed Workshop.
+The packaged smoke test additionally exercises the installed binary, real PTY, and optional live ACP
+providers.
 
-Hearth is a new repository and never modifies PersonalOS. Project discovery reads only local folder
-markers and metadata. File contents are read only for a deliberate preview, bounded local search, or
-explicit resident evidence handoff. Studio promotion into an existing project stores the connection
-in Hearth alone. Project-file writes occur only through the separately confirmed bounded editor or
-an explicitly owned Workshop terminal.
+## Data and network behavior
+
+- SQLite stores application state, conversations, captures, decisions, approved memory, bounded
+  work summaries, and recovery metadata.
+- Raw terminal output, complete project files, and transient evidence buffers are not persisted as
+  conversation or memory.
+- Link enrichment and Library discovery reject private-network destinations and keep bounded caches.
+- Remote Companion access is opt-in, paired, private-tailnet only, and never exposes execution
+  controls.
+- Hearth has no analytics or telemetry pipeline.
+
+## Current limitations
+
+- Windows x64 only; macOS, Linux, and Windows ARM are not supported.
+- Pre-1.0 data migrations are tested, but long-term compatibility is not yet promised.
+- No automatic updater or published installer release yet.
+- The visual system and defaults were designed around one primary workflow and still need broader
+  accessibility and first-run testing.
+- PersonalOS Stacks import is a deliberately narrow legacy bridge, not a general importer.
+- Live resident quality and availability depend on the installed provider CLIs and their accounts.
+
+## Documentation
+
+- [Reviewer Guide](docs/reviewer-guide.md) — the shortest path through the important behavior
+- [Architecture](docs/architecture.md) — processes, providers, persistence, and data flow
+- [Security Notes](docs/security-notes.md) — detailed capability and trust boundaries
+- [Contributing](CONTRIBUTING.md) — development workflow and design constraints
+- [Claude Code Project Guide](CLAUDE.md) — repository instructions for Claude Code
+- [Architecture decisions](docs/adr/) — why the major boundaries exist
+- [Milestones](docs/milestones/) — chronological implementation evidence
+
+## Development context
+
+Hearth grew from one person's daily AI workflow and was developed through human-directed
+collaboration with multiple coding agents. Claude Code is both a first-class runtime dependency and
+the interaction model Hearth is trying to preserve: visible work, explicit permission, project
+continuity, and the ability to redirect an active run without losing the thread.
+
+The repository was published as a clean source snapshot. The milestone and ADR documents preserve
+the engineering sequence without publishing private local conversation history.
+
+## License
+
+No license has been selected yet. Until one is added, the source is publicly reviewable but is not
+licensed for reuse or redistribution.
