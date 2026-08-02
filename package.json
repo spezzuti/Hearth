@@ -1,0 +1,110 @@
+{
+  "name": "hearth",
+  "version": "0.47.2",
+  "private": true,
+  "author": "Hearth",
+  "description": "A Windows-first working home for projects, agents, terminals, memory, and useful things.",
+  "type": "module",
+  "main": "dist-main/main/main.cjs",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build:renderer": "vite build",
+    "build:desktop": "tsup src/main/main.ts src/main/preload.ts src/core/core.ts --format cjs --platform node --target node24 --out-dir dist-main --sourcemap --clean --external electron --external node:sqlite --external node-pty",
+    "build": "npm run build:renderer && npm run build:desktop",
+    "dev:renderer": "vite",
+    "dev:desktop": "tsup src/main/main.ts src/main/preload.ts src/core/core.ts --format cjs --platform node --target node24 --out-dir dist-main --sourcemap --watch --external electron --external node:sqlite --external node-pty",
+    "dev:electron": "wait-on tcp:5173 file:dist-main/main/main.cjs file:dist-main/main/preload.cjs file:dist-main/core/core.cjs && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "dev": "concurrently -k -n renderer,desktop,electron -c green,blue,magenta \"npm:dev:renderer\" \"npm:dev:desktop\" \"npm:dev:electron\"",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test",
+    "test:packaged": "node scripts/packaged-smoke.mjs",
+    "verify": "npm run typecheck && npm run test && npm run test:e2e",
+    "package:dir": "npm run build && electron-builder --dir",
+    "package": "npm run build && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "^0.64.0",
+    "@agentclientprotocol/codex-acp": "^1.1.7",
+    "@agentclientprotocol/sdk": "^1.3.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.2.0-beta.14",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "concurrently": "10.0.4",
+    "cross-env": "10.1.0",
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3",
+    "tsup": "8.5.1",
+    "typescript": "7.0.2",
+    "vite": "8.1.5",
+    "vitest": "4.1.10",
+    "wait-on": "9.1.0"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
+  },
+  "build": {
+    "appId": "home.hearth.desktop",
+    "productName": "Hearth",
+    "asar": true,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "node_modules/node-pty/prebuilds/win32-x64/**/*",
+      "node_modules/@openai/codex-win32-x64/vendor/**/*"
+    ],
+    "files": [
+      "dist-main/**/*",
+      "dist-renderer/**/*",
+      "package.json",
+      "!node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**/*",
+      "!node_modules/node-pty/prebuilds/darwin-*/**/*",
+      "!node_modules/node-pty/prebuilds/linux-*/**/*",
+      "!node_modules/node-pty/prebuilds/win32-arm64/**/*",
+      "!node_modules/node-pty/prebuilds/**/*.pdb",
+      "!node_modules/node-pty/build/**/*",
+      "!node_modules/node-pty/src/**/*",
+      "!node_modules/node-pty/scripts/**/*",
+      "!node_modules/node-pty/third_party/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "extraResources": [
+      {
+        "from": "build/tray.ico",
+        "to": "tray.ico"
+      }
+    ],
+    "win": {
+      "icon": "build/tray.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
