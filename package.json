@@ -3,6 +3,7 @@
   "version": "0.47.2",
   "private": true,
   "author": "Hearth",
+  "license": "Apache-2.0",
   "description": "A Windows-first working home for projects, agents, terminals, memory, and useful things.",
   "homepage": "https://github.com/spezzuti/Hearth#readme",
   "repository": {

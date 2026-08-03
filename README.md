@@ -243,5 +243,4 @@ the engineering sequence without publishing private local conversation history.
 
 ## License
 
-No license has been selected yet. Until one is added, the source is publicly reviewable but is not
-licensed for reuse or redistribution.
+Hearth is licensed under the [Apache License 2.0](LICENSE).
