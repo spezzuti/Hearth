@@ -1,11 +1,11 @@
 # Hearth
 
-**A Windows-first working home for Claude Code, projects, agents, memory, and the loose material around real work.**
+**A Windows desktop home for doing real work with Claude Code—without losing the terminal experience.**
 
-Hearth is an experimental desktop environment for people who direct AI coding work more often than
-they write every line themselves. It keeps the technical Claude Code workstream visible, gives the
-user a conversational Maker beside it, and connects that work to project review, independent
-critique, saved research, ideas, decisions, and return points.
+Hearth is a local, Windows-first desktop app for people who direct AI coding work more often than
+they write every line themselves. It keeps Claude Code's technical workstream visible, puts a
+conversational Maker beside it, and connects that work to project review, independent critique,
+saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
@@ -13,7 +13,22 @@ critique, saved research, ideas, decisions, and return points.
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
-## Why Hearth exists
+## At a glance
+
+- **See the work, not just the answer.** Workshop keeps Claude Code's plans, tool activity, diffs,
+  token use, modes, effort, and permissions in the main workstream.
+- **Keep a human-sized conversation beside it.** Maker is the technical partner on the right, not a
+  second terminal or a fake summary of hidden work.
+- **Use specialists without blurring their roles.** Critic provides an independent read-only review;
+  Librarian retrieves and curates; Companion helps you re-enter the work.
+- **Keep continuity local and explicit.** Project selection, return points, decisions, and resident
+  conversations persist locally. Context and authority move through visible handoffs.
+
+Hearth is not a browser, a cloud workspace, or an autonomous agent swarm. It is a local home base
+for the parts of AI-assisted project work that otherwise get scattered across terminals, chats,
+bookmarks, notes, and half-remembered next steps.
+
+## Why it exists
 
 AI-assisted work usually fragments across a terminal, file explorer, Git client, bookmarks, notes,
 chat windows, and a half-remembered explanation of where the last session stopped. Hearth tests a
@@ -33,7 +48,7 @@ The core workflow is intentionally not an autonomous everything-app:
 5. **Keep the surrounding material.** Library owns links and research, Studio owns ideas and loose
    notes, Archive owns recoverable history, and Return Packs explain where work stopped.
 
-## What is different here
+## The difference
 
 - **Claude Code remains visible.** Hearth does not reduce an agent run to a spinner and a final
   paragraph. Workshop renders the technical stream while Maker supplies the short human version.
@@ -61,6 +76,8 @@ The core workflow is intentionally not an autonomous everything-app:
 | **Studio** | Ideas, loose or project-connected notes, deliberate pursuit, and project promotion |
 | **Archive** | Searchable Return Packs, released material, closed handoffs, and verified recovery |
 
+## A few rooms, in practice
+
 <table>
   <tr>
     <td><img src="docs/images/living-room.png" alt="Living Room pressure test with four residents" /></td>
@@ -70,14 +87,18 @@ The core workflow is intentionally not an autonomous everything-app:
     <td align="center"><strong>Shared decisions without merged private histories</strong></td>
     <td align="center"><strong>Ideas can rest without becoming tasks</strong></td>
   </tr>
+  <tr>
+    <td><img src="docs/images/library.png" alt="Library with saved links, collections, and Librarian" /></td>
+    <td><img src="docs/images/mobile.png" alt="Hearth Companion mobile surface" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>A curated shelf instead of a bookmark graveyard</strong></td>
+    <td align="center"><strong>A deliberately bounded companion surface away from the desk</strong></td>
+  </tr>
 </table>
 
 The optional Companion surface is intentionally smaller on mobile: status, captures, reversible
 decisions, recent reports, and conversation—no terminal, project files, edits, or execution controls.
-
-<p align="center">
-  <img src="docs/images/mobile.png" width="360" alt="Hearth Companion mobile surface" />
-</p>
 
 ## Claude Code and resident routing
 
@@ -144,6 +165,10 @@ cd Hearth
 npm ci
 npm run dev
 ```
+
+That starts the local desktop app. Choose a project in **Study**, then choose **Work here** to open
+its managed Workshop session. The normal project root stays on your machine; Hearth reads and acts
+only through its explicit project and terminal contracts.
 
 To explore the complete interface without invoking Claude Code or Codex:
 
