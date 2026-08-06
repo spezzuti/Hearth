@@ -9,7 +9,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.47.2. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 prototype, version 0.48.0. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
@@ -194,7 +194,7 @@ database.
 | `npm run package:dir` | Build an unpacked Windows application |
 | `npm run package` | Build the Windows NSIS installer |
 
-The current release gate covers 103 unit tests across 14 files and 13 serial Electron scenarios,
+The current release gate covers 106 unit tests across 15 files and 13 serial Electron scenarios,
 including renderer reload, relaunch, ConPTY lifecycle, project containment, bounded edits, resident
 handoffs, Living Room orchestration, compact layouts, archive recovery, and the managed Workshop.
 The packaged smoke test additionally exercises the installed binary, real PTY, and optional live ACP

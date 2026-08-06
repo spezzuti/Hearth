@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.47.2 implementation. It is an implementation map, not a
+This document describes the current 0.48.0 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model
@@ -60,13 +60,17 @@ perspectives over explicit surfaces and bounded context.
 
 | Resident | Primary role | Provider route | Capability ceiling |
 | --- | --- | --- | --- |
-| Maker | Builder and practical project partner | Claude Code ACP / Opus | Tool work only inside managed Workshop |
-| Critic | Independent skeptical reviewer | Codex ACP, then Claude Fable fallback | Read-only project diagnostics |
-| Librarian | Retrieval, precedent, and collection judgment | Claude Code / Opus | Bounded Library evidence; no mutations |
-| Companion | Orientation and household synthesis | Claude Code / Opus | Home context only; no project or terminal capability |
+| Maker | Builder and practical project partner | Claude Code ACP, configured for Opus | Tool work only inside managed Workshop |
+| Critic | Independent skeptical reviewer | Codex ACP, then configured Claude Fable fallback | Read-only project diagnostics |
+| Librarian | Retrieval, precedent, and collection judgment | Claude Code, configured for Opus | Bounded Library evidence; no mutations |
+| Companion | Orientation and household synthesis | Claude Code, configured for Opus | Home context only; no project or terminal capability |
 
 Local fallbacks are visible in the UI. They preserve basic personality and retrieval behavior but do
 not pretend a model or tool action occurred.
+
+Model identity also carries provenance. Hearth labels a configured alias as configured until ACP or
+the bounded Claude transcript reports the model actually used. Codex is named as the provider, but
+Hearth does not invent an underlying Codex model when the adapter does not disclose one.
 
 ## Managed Workshop flow
 

@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.47.2. It complements the historical
-milestones, which stop at 0.39.0, and records the audit performed on 2026-08-05.
+This is the current engineering snapshot for Hearth 0.48.0. It records the Phase 0 trust-baseline
+work completed and locally verified on 2026-08-06.
 
 ## What is already working
 
@@ -23,8 +23,8 @@ Hearth is a functional Windows x64 prototype rather than a static interface conc
 
 ## What changed after the milestone trail
 
-The numbered milestone records currently end with 0.39.0. The implementation continued through
-0.47.2:
+The earlier numbered milestone trail paused at 0.39.0. The implementation continued through 0.47.2,
+and explicit milestone records resume with 0.48.0:
 
 | Release window | Material change |
 | --- | --- |
@@ -34,45 +34,40 @@ The numbered milestone records currently end with 0.39.0. The implementation con
 | 0.43.x | The full Claude workstream became visible and Maker conversation history became project-scoped. |
 | 0.44–0.46 | Workshop was unified into a project-bound workbench and visually rebuilt around the Claude Code flow. |
 | 0.47.x | Manual, Auto, and Planning controls, effort selection, context usage, terminal-like streaming, and active-turn interruption were completed and repaired. |
-| 0.47.2 current | Living Room conversations, pressure tests, handoffs, and managed Workshop interruption are integrated. |
+| 0.47.2 | Living Room conversations, pressure tests, handoffs, and managed Workshop interruption are integrated. |
+| 0.48.0 current | Dependency trust baseline, isolated runtime upgrades, Windows CI, and truthful provider identity. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
 
-## Audit findings
+## Phase 0 outcome
 
-### Priority zero: dependency advisories
+### Dependency and runtime baseline
 
-The production dependency audit changed after the 2026-08-03 public-documentation pass. On
-2026-08-05 it reports:
+- `fast-uri`, `hono`, and every affected `brace-expansion` branch were repaired with transitive
+  lockfile updates. Both `npm audit` and `npm audit --omit=dev` report zero known vulnerabilities.
+- Claude ACP moved to 0.65.0, Codex ACP to 1.1.10, `node-pty` to 1.2.0-beta.15, and Electron to
+  43.3.0. Each runtime family was upgraded and verified in a separate commit.
+- The rebuilt Windows package passed real ConPTY startup/input/shutdown behavior. Its optional live
+  provider smoke also proved Codex routing, Claude workstream details, plan/manual switching, token
+  usage, and cancel-then-replace interruption.
 
-- `fast-uri` 3.1.4: high-severity host-confusion advisory
-  [GHSA-7p8r-x3mc-p8w7](https://github.com/advisories/GHSA-7p8r-x3mc-p8w7), reached through the
-  Claude/MCP validation stack;
-- `hono` 4.12.33: moderate-severity CORS-header ReDoS advisory
-  [GHSA-8j4g-w8fx-2239](https://github.com/advisories/GHSA-8j4g-w8fx-2239), reached through the
-  Model Context Protocol SDK; and
-- several `brace-expansion` advisories in build tooling, including
-  [GHSA-rgw5-rvv9-x895](https://github.com/advisories/GHSA-rgw5-rvv9-x895).
+### Public verification
 
-`npm audit fix --dry-run` reports non-breaking transitive updates for all three families. Apply the
-smallest lockfile repair first, then run the full unit, Electron, packaged, ACP, Companion-network,
-and installer smoke gates before new feature work.
+`.github/workflows/windows-ci.yml` now runs locked installation, production audit, type checking,
+unit tests, production build, and the deterministic 13-scenario Electron suite on Windows. Failed
+Electron traces are retained for seven days. The workflow is committed locally; its first public
+green run remains external confirmation after push, so no status badge is claimed yet.
 
-### Priority zero: no public CI gate
+### Provider identity truth
 
-The public repository documents a strong local verification gate but does not currently contain a
-GitHub Actions workflow. A clean local run is useful evidence; a public project should also prove
-type checking, unit tests, build output, dependency audit policy, and at least a Windows Electron
-smoke path on every pull request.
+Resident status now distinguishes a configured model alias, a model actually reported by Claude,
+and an unavailable or unreported model. Managed Maker reads the ACP model selector and the bounded
+Claude transcript; the live packaged smoke reported **Claude Opus 5**. Before that evidence exists,
+the UI says **Claude configured Opus**. Codex is identified as the active provider without inventing
+an underlying model the adapter did not disclose.
 
-### Provider identity can overstate certainty
-
-Several renderer and provider-status paths use fixed **Claude Opus 5** and **Claude Fable 5** labels.
-That matches the intended household configuration, but it is not always evidence of the model the
-live ACP session actually selected. When the provider reports a model, Hearth should display it.
-When it does not, Hearth should say **configured Opus** or **model not reported**, not present a
-hard-coded label as live truth.
+## Next engineering findings
 
 ### Turn timeout is absolute rather than activity-aware
 
@@ -89,22 +84,14 @@ estimates and show the bounded material it supplied: current direction, recent c
 project evidence, tool results, plans, and approved memory. It must not claim access to hidden
 provider prompt construction that ACP does not expose.
 
-### Dependency drift is modest but relevant
-
-The direct ACP adapters have newer releases available (`claude-agent-acp` 0.65.0 and `codex-acp`
-1.1.9 at audit time). Because the Claude adapter is pre-1.0 and the managed Workshop depends on
-session/update details, adapter upgrades should be isolated and verified rather than swept into an
-unrelated feature change.
-
 ## Current quality signal
 
-- The tracked worktree was clean at the start of the audit.
-- The complete `npm run verify` gate passed on 2026-08-05: type checking, 103 unit tests, the
-  production build, and all 13 serial Electron scenarios.
+- The complete `npm run verify` gate passed on 2026-08-06: type checking, 106 unit tests across 15
+  files, the production build, and all 13 serial Electron scenarios.
 - The Electron run exercised continuity, containment, real ConPTY behavior, handoffs, Living Room,
   project-scoped conversations, reload/relaunch, and responsive layouts.
-- Runtime-provider behavior still needs an explicit packaged smoke whenever ACP dependencies,
-  provider health, interruption, context, or permissions change.
+- The current rebuilt package passed both the local ConPTY smoke and the optional live Claude/Codex
+  ACP smoke. Those remain required whenever provider, interruption, context, or permissions change.
 
 The implementation plan for these findings and the selected Buzz/Hermes ideas is in
 [roadmap.md](roadmap.md).

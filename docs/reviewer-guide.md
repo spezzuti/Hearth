@@ -93,7 +93,7 @@ npm test
 npm run test:e2e
 ```
 
-The complete `npm run verify` gate runs all three. On the current release, that is 103 unit tests and
+The complete `npm run verify` gate runs all three. On the current release, that is 106 unit tests and
 13 serial Electron scenarios. The E2E suite creates synthetic repositories and isolated application
 data; it does not use the reviewer's personal Hearth database.
 

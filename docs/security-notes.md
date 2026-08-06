@@ -39,6 +39,9 @@
 - The renderer receives only attach, detach, resize, input, ownership, explicit stop, and bounded instruction operations.
 - Terminal input is accepted only for the current UUID and current owner.
 - Raw output is capped in memory and is not written to SQLite, general memory, captures, or search.
+- Managed Maker may read the tail of its own Claude session transcript to recover the latest
+  top-level assistant model and numeric token usage. It does not persist or expose transcript text;
+  the extracted identity is marked as reported rather than configured.
 - When the user explicitly gives Maker the terminal seat, a non-social Maker chat turn receives at
   most the latest 120 cleaned lines and 16,000 characters of the in-memory terminal view. Common
   credential assignment, authorization header, and known token shapes are redacted locally first.

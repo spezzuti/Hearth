@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.47.2 implementation described in
+This roadmap starts from the real Hearth 0.48.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -23,35 +23,39 @@ changing Hearth into a team-chat network, autonomous agent swarm, browser, or ge
 | Hermes/Buzz conversational voice | Paired mobile Companion and residents with established conversational identities | Add push-to-talk and barge-in later, after provider trust and context are solid. |
 | Hermes A2A and Buzz bring-your-own harness | Separate Claude and Codex ACP routes | Keep an adapter seam in mind, but defer general agent interoperability until a real workflow requires it. |
 
-## Phase 0 — restore the trust baseline
+## Phase 0 — trust baseline delivered locally in 0.48.0
 
-This phase blocks feature work.
+The implementation and local release evidence are complete. The Windows workflow must still receive
+its first green public run after these commits are pushed before a status badge is added.
 
 ### Dependency and packaging repair
 
-1. Apply the smallest transitive lockfile updates that resolve `fast-uri`, `hono`, and
+1. Applied the smallest transitive lockfile updates that resolve `fast-uri`, `hono`, and
    `brace-expansion` advisories.
-2. Verify `npm audit --omit=dev` is clean and document any remaining build-only advisory accurately.
-3. Evaluate Claude ACP 0.65.x, Codex ACP 1.1.9, `node-pty` beta.15, and the current Electron patch in
-   separate commits. Do not combine native or ACP upgrades.
-4. Run typecheck, unit tests, the complete Electron suite, packaged ConPTY smoke, live Claude/Codex
-   ACP smoke, interruption, permission cleanup, and installer launch/quit cleanup.
+2. Both the production and complete dependency audits are clean.
+3. Claude ACP 0.65.0, Codex ACP 1.1.10, `node-pty` beta.15, and Electron 43.3.0 were upgraded and
+   verified in separate commits.
+4. Typecheck, 106 unit tests, 13 Electron scenarios, a rebuilt packaged ConPTY smoke, and the live
+   Claude/Codex ACP workstream plus interruption smoke passed on Windows.
 
 ### Public verification
 
-1. Add a Windows GitHub Actions gate for install, typecheck, unit tests, build, and production audit.
+1. A Windows GitHub Actions gate now covers locked install, production audit, typecheck, unit tests,
+   build, and the deterministic Electron suite.
 2. Prove whether the complete Electron suite is stable on the hosted Windows runner. If not, publish
    a smaller deterministic smoke there and keep the full suite as a documented release gate.
 3. Add a status badge only after the workflow is consistently meaningful.
 
 ### Provider truth
 
-1. Replace fixed live model labels with provider-reported identity where available.
-2. Label configured defaults and unreported runtime identity honestly.
-3. Keep provider, fallback, degraded, authenticating, and unavailable states semantically separate.
+1. Fixed live model labels were replaced with provider- or transcript-reported identity where
+   available.
+2. Configured Claude aliases and unreported model identity are now explicit.
+3. Provider, fallback, local, degraded, and unavailable states remain separate.
 
-**Exit:** zero known runtime audit findings, a green public gate, clean packaged shutdown, and no UI
-claiming more provider certainty than Hearth possesses.
+**Local exit met:** zero known dependency audit findings, clean packaged shutdown and interruption,
+and no UI claiming more provider certainty than Hearth possesses. **External confirmation pending:**
+the first pushed Windows workflow run.
 
 ## Phase 1 — Workshop turn health and Provider Doctor
 
