@@ -289,6 +289,20 @@ function effortOption(options?: SessionConfigOption[] | null): SessionConfigOpti
   ) ?? null;
 }
 
+function modelOption(options?: SessionConfigOption[] | null): SessionConfigOption | null {
+  return options?.find(
+    (option) => option.type === "select" &&
+      (option.id.toLocaleLowerCase() === "model" || option.category === "model")
+  ) ?? null;
+}
+
+function readableClaudeModel(value: string): string {
+  return value
+    .replace(/^claude-/i, "Claude ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 const MAKER_MODE_ORDER = ["default", "auto", "plan"] as const;
 const MAKER_MODE_NAMES: Record<(typeof MAKER_MODE_ORDER)[number], string> = {
   default: "Manual",
@@ -347,6 +361,7 @@ export function nextMakerEffort(
 }
 
 interface ClaudeTranscriptUsage {
+  model: string | null;
   inputTokens: number;
   outputTokens: number;
   cachedReadTokens: number;
@@ -381,7 +396,14 @@ export function latestClaudeTranscriptUsage(text: string): ClaudeTranscriptUsage
       const cachedWriteTokens = usage.cache_creation_input_tokens ?? 0;
       const contextUsed = inputTokens + outputTokens + cachedReadTokens + cachedWriteTokens;
       if (contextUsed <= 0) continue;
-      return { inputTokens, outputTokens, cachedReadTokens, cachedWriteTokens, contextUsed };
+      return {
+        model: row.message?.model ? readableClaudeModel(row.message.model) : null,
+        inputTokens,
+        outputTokens,
+        cachedReadTokens,
+        cachedWriteTokens,
+        contextUsed
+      };
     } catch {
       // Ignore partial or non-JSON transcript lines and keep looking backward.
     }
@@ -409,9 +431,16 @@ function sessionState(
   const availableModes = makerModeOptions(modes);
   const modeId = modes?.currentModeId ?? "default";
   const effort = effortOption(configOptions);
+  const model = modelOption(configOptions);
+  const availableModels = model ? selectValues(model) : [];
+  const modelId = model?.type === "select" ? model.currentValue : null;
+  const modelName = availableModels.find((item) => item.id === modelId)?.name ?? modelId;
   const availableEfforts = effort ? selectValues(effort) : [];
   const effortId = effort?.type === "select" ? effort.currentValue : null;
   return {
+    modelId,
+    modelName: modelName ? readableClaudeModel(modelName) : "Opus",
+    modelSource: modelName ? "reported" : "configured",
     modeId,
     modeName: availableModes.find((mode) => mode.id === modeId)?.name ??
       (modeId in MAKER_MODE_NAMES
@@ -708,6 +737,8 @@ export class ClaudeAcpRuntime {
       if (response.usage || transcriptUsage) {
         state = {
           ...state,
+          modelName: transcriptUsage?.model ?? state.modelName,
+          modelSource: transcriptUsage?.model ? "reported" : state.modelSource,
           inputTokens: response.usage?.inputTokens ?? transcriptUsage?.inputTokens ?? state.inputTokens,
           outputTokens: response.usage?.outputTokens ?? transcriptUsage?.outputTokens ?? state.outputTokens,
           cachedReadTokens: response.usage?.cachedReadTokens ?? transcriptUsage?.cachedReadTokens ?? state.cachedReadTokens,
@@ -978,6 +1009,9 @@ export class ClaudeAcpRuntime {
       const configState = sessionState(null, update.configOptions);
       const next = {
         ...current,
+        modelId: configState.modelId,
+        modelName: configState.modelName,
+        modelSource: configState.modelSource,
         effortId: configState.effortId,
         effortName: configState.effortName,
         availableEfforts: configState.availableEfforts
@@ -1001,6 +1035,13 @@ export class ClaudeAcpRuntime {
       this.activities.set(activity.id, activity);
       turn.onEvent({ type: "activity", activity });
     }
+  }
+
+  reportedModel(cwd: string): string | null {
+    const sessionId = this.sessions.get(cwd);
+    if (!sessionId) return null;
+    const state = this.sessionStates.get(sessionId);
+    return state?.modelSource === "reported" ? state.modelName ?? null : null;
   }
 
   private cancelPermission(permissionId: string): void {

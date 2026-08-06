@@ -61,6 +61,7 @@ import {
 } from "./HearthSearch";
 import { HouseMemoryDialog } from "./HouseMemoryDialog";
 import { ResidentAvatar } from "./ResidentAvatar";
+import { residentProviderLabel } from "./provider-label";
 import { LivingRoom } from "./LivingRoom";
 
 interface AgentStreamView {
@@ -133,16 +134,14 @@ function submitChatOnEnter(event: KeyboardEvent<HTMLTextAreaElement>): void {
 function agentProviderLabel(data: BootstrapData, agent: ReasoningAgent): string {
   const resident = data.runtime.provider.residents?.[agent];
   if (resident) {
-    if (resident.provider === "local") return resident.name;
-    const label = resident.model ?? resident.name;
-    return resident.fallbackFrom ? `${label} · fallback` : label;
+    return residentProviderLabel(resident);
   }
   if (data.runtime.provider.active === "local") {
     return data.runtime.provider.name;
   }
   return (
     data.runtime.provider.models[agent] ??
-    (agent === "critic" ? "Codex" : "Claude Opus 5")
+    (agent === "critic" ? "Codex" : "Claude configured Opus")
   );
 }
 
@@ -4977,7 +4976,9 @@ export function App(): ReactNode {
       agent === "critic" &&
       update.provider.residents?.critic.fallbackFrom === "codex"
     ) {
-      setToast("Codex was unavailable, so Critic used Claude Fable 5 for this reply.");
+      setToast(
+        `Codex was unavailable, so Critic used ${residentProviderLabel(update.provider.residents.critic)} for this reply.`
+      );
     }
     return true;
   }

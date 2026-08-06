@@ -30,6 +30,7 @@ import type {
   WorkshopTurn
 } from "../../shared/contracts";
 import { ResidentAvatar } from "./ResidentAvatar";
+import { residentProviderLabel } from "./provider-label";
 
 const LIVE_STATES = new Set(["starting", "running", "waiting"]);
 
@@ -72,6 +73,12 @@ function providerLines(label: string): { family: string | null; model: string } 
   return match
     ? { family: match[1] ?? "Claude", model: match[2] ?? label }
     : { family: null, model: label };
+}
+
+function makerSessionModelLabel(state: MakerSessionState | null | undefined): string {
+  if (state?.modelSource === "reported" && state.modelName) return state.modelName;
+  if (state?.modelSource === "unreported") return "Claude model not reported";
+  return `Claude configured ${state?.modelName ?? "Opus"}`;
 }
 
 function activityGlyph(kind: MakerWorkActivity["kind"]): string {
@@ -1444,7 +1451,7 @@ function ClaudeWorkbench({
             <i style={{ "--context-fill": `${contextPercent ?? 0}%` } as CSSProperties} />
         </span>
         <div className="claude-session-meta">
-          <span className="managed-session-chip">Claude Opus 5</span>
+          <span className="managed-session-chip">{makerSessionModelLabel(effectiveSessionState)}</span>
           <span className={`managed-session-chip is-mode is-${effectiveSessionState?.modeId ?? "default"}`}>{makerModeLabel(effectiveSessionState)}</span>
           {effectiveSessionState?.effortName ? <span className="managed-session-chip is-effort">{effectiveSessionState.effortName} effort</span> : null}
         </div>
@@ -1566,7 +1573,7 @@ function ManagedMakerWorkbench({
           <small>{rootPath}</small>
         </div>
         <div className="managed-session-status">
-          <span className="managed-session-chip">Claude Opus 5</span>
+          <span className="managed-session-chip">{makerSessionModelLabel(sessionState)}</span>
           <span className="managed-session-chip is-mode">
             {sessionState?.modeName ?? "Connecting"}
           </span>
@@ -2001,7 +2008,9 @@ export function WorkshopRoom({
               </strong>
               <small>
                 {workbench === "maker"
-                  ? "Claude Opus 5 · ACP session"
+                  ? `${data.runtime.provider.residents?.maker
+                      ? residentProviderLabel(data.runtime.provider.residents.maker)
+                      : "Claude configured Opus"} · ACP session`
                   : data.terminal.capabilities.claudeAvailable
                   ? `Claude Code ${data.terminal.capabilities.claudeVersion ?? "available"}`
                   : "Claude Code not detected"}
@@ -2258,9 +2267,11 @@ export function WorkshopRoom({
             session={session}
             observation={data.terminal.observation}
             providerLabel={
-              data.runtime.provider.residents?.maker.model ??
+              (data.runtime.provider.residents?.maker
+                ? residentProviderLabel(data.runtime.provider.residents.maker)
+                : null) ??
               (data.runtime.provider.active === "claude-code"
-                ? data.runtime.provider.models.maker ?? "Claude Opus 5"
+                ? data.runtime.provider.models.maker ?? "Claude configured Opus"
                 : "Local")
             }
             providerOnline={

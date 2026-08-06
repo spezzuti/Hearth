@@ -2692,10 +2692,10 @@ test.describe.serial("continuity vertical slice", () => {
       ).toBeVisible();
       const makerProvider = running.page.locator(".maker-provider");
       await expect(makerProvider).toContainText("Claude");
-      await expect(makerProvider).toContainText("Opus 5");
+      await expect(makerProvider).toContainText("configured Opus");
       await expect(
         running.page.locator(".maker-status")
-      ).toHaveAttribute("aria-label", "Claude Opus 5 · online");
+      ).toHaveAttribute("aria-label", "Claude configured Opus · online");
       await expect(running.page.locator(".maker-status")).toHaveClass(
         /maker-status--online/
       );
@@ -2740,7 +2740,7 @@ test.describe.serial("continuity vertical slice", () => {
               document.documentElement.clientWidth
           };
         });
-        expect(statusLayout.label).toBe("Claude Opus 5");
+        expect(statusLayout.label).toBe("Claude configured Opus");
         expect(statusLayout.providerDotGap).toBeGreaterThanOrEqual(6);
         expect(statusLayout.rightInset).toBeGreaterThanOrEqual(16);
         expect(statusLayout.statusAfterAvatar).toBeGreaterThanOrEqual(4);

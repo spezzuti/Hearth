@@ -832,6 +832,7 @@ export interface ResidentProviderStatus {
   provider: "claude-code" | "codex" | "local";
   name: string;
   model: string | null;
+  modelSource?: "reported" | "configured" | "unreported";
   available: boolean;
   state: "ready" | "local" | "degraded";
   detail: string;
@@ -884,6 +885,9 @@ export interface MakerWorkPlanEntry {
 }
 
 export interface MakerSessionState {
+  modelId?: string | null;
+  modelName?: string | null;
+  modelSource?: "reported" | "configured" | "unreported";
   modeId: string;
   modeName: string;
   availableModes: Array<{

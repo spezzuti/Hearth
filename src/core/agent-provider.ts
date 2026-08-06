@@ -345,7 +345,11 @@ const householdConversationPrompt = [
 ].join("\n");
 
 function configuredModelLabel(agent: ReasoningAgent): string {
-  return agent === "critic" ? "Codex" : "Claude Opus 5";
+  return agent === "critic" ? "Codex" : "Claude configured Opus";
+}
+
+function configuredClaudeModel(agent: ReasoningAgent): string {
+  return agent === "critic" ? "Fable" : "Opus";
 }
 
 export function agentRolePrompt(agent: ReasoningAgent): string {
@@ -831,13 +835,14 @@ export class AgentProvider {
           ...this.status.models,
           [request.agent]: model ?? configuredModelLabel(request.agent)
         },
-        detail: "Companion, Maker, and Librarian use Opus · Critic uses Codex via ACP with a Fable fallback",
+        detail: "Companion, Maker, and Librarian are configured for Opus · Critic uses Codex via ACP with a Fable fallback",
         lastError: null,
         lastUsedAt: now(),
         residents: this.updateResident(request.agent, {
           provider: "claude-code",
           name: "Claude Code",
-          model: model ?? configuredModelLabel(request.agent),
+          model: model ?? configuredClaudeModel(request.agent),
+          modelSource: model ? "reported" : "configured",
           available: true,
           state: "ready",
           detail: "Available for conversation",
@@ -870,6 +875,7 @@ export class AgentProvider {
           provider: "local",
           name: "Hearth local",
           model: null,
+          modelSource: "unreported",
           available: false,
           state: "degraded",
           detail: "The resident model could not answer.",
@@ -913,6 +919,7 @@ export class AgentProvider {
           ultracodeRequested: /\bultracode\b/i.test(request.text)
         }
       );
+      const model = this.managedMaker.reportedModel(cwd);
       const usedAt = now();
       this.status = {
         ...this.status,
@@ -921,14 +928,15 @@ export class AgentProvider {
         available: true,
         state: "ready",
         name: "Hearth residents",
-        models: { ...this.status.models, maker: "Claude Opus 5" },
+        models: { ...this.status.models, maker: model ?? configuredModelLabel("maker") },
         detail: "Maker works through a managed Claude ACP session · Critic uses Codex",
         lastError: null,
         lastUsedAt: usedAt,
         residents: this.updateResident("maker", {
           provider: "claude-code",
           name: "Claude Code via ACP",
-          model: "Claude Opus 5",
+          model: model ?? configuredClaudeModel("maker"),
+          modelSource: model ? "reported" : "configured",
           available: true,
           state: "ready",
           detail: "Managed Workshop session",
@@ -952,7 +960,8 @@ export class AgentProvider {
         residents: this.updateResident("maker", {
           provider: "claude-code",
           name: "Claude Code via ACP",
-          model: "Claude Opus 5",
+          model: configuredClaudeModel("maker"),
+          modelSource: "configured",
           available: false,
           state: "degraded",
           detail: "Managed Workshop session unavailable",
@@ -1011,13 +1020,14 @@ export class AgentProvider {
           state: "ready",
           name: "Hearth residents",
           models: { ...this.status.models, critic: "Codex" },
-          detail: "Critic uses Codex over ACP in read-only mode · Fable 5 is the fallback",
+          detail: "Critic uses Codex over ACP in read-only mode · configured Fable is the fallback",
           lastError: null,
           lastUsedAt: usedAt,
           residents: this.updateResident("critic", {
             provider: "codex",
             name: "Codex via ACP",
-            model: "Codex",
+            model: null,
+            modelSource: "unreported",
             available: true,
             state: "ready",
             detail: "Independent read-only review",
@@ -1048,19 +1058,21 @@ export class AgentProvider {
           throw new Error(claudeResultError(result, "critic"));
         }
         const usedAt = now();
+        const model = readableModel(result);
         this.status = {
           ...this.status,
           available: true,
           state: "ready",
           name: "Hearth residents",
-          models: { ...this.status.models, critic: "Claude Fable 5" },
-          detail: "Critic fell back from Codex to Claude Fable 5",
+          models: { ...this.status.models, critic: model ?? "Claude configured Fable" },
+          detail: "Critic fell back from Codex to configured Claude Fable",
           lastError: codexError,
           lastUsedAt: usedAt,
           residents: this.updateResident("critic", {
             provider: "claude-code",
             name: "Claude Code",
-            model: readableModel(result) ?? "Claude Fable 5",
+            model: model ?? configuredClaudeModel("critic"),
+            modelSource: model ? "reported" : "configured",
             available: true,
             state: "ready",
             detail: "Fallback review · Codex was unavailable",
@@ -1103,13 +1115,14 @@ export class AgentProvider {
           ...this.status.models,
           maker: readableModel(result) ?? configuredModelLabel("maker")
         },
-        detail: "Maker uses Claude Opus · Critic uses Codex via ACP with a Fable fallback",
+        detail: "Maker is configured for Claude Opus · Critic uses Codex via ACP with a Fable fallback",
         lastError: null,
         lastUsedAt: now(),
         residents: this.updateResident("maker", {
           provider: "claude-code",
           name: "Claude Code",
-          model: readableModel(result) ?? "Claude Opus 5",
+          model: readableModel(result) ?? configuredClaudeModel("maker"),
+          modelSource: readableModel(result) ? "reported" : "configured",
           available: true,
           state: "ready",
           detail: "Available for work planning",
@@ -1146,6 +1159,7 @@ export class AgentProvider {
           provider: "local",
           name: "Hearth local",
           model: null,
+          modelSource: "unreported",
           available: false,
           state: "degraded",
           detail: "Maker could not prepare the handoff",
@@ -1207,7 +1221,8 @@ export class AgentProvider {
         residents: this.updateResident("maker", {
           provider: "claude-code",
           name: "Claude Code",
-          model: readableModel(result) ?? "Claude Opus 5",
+          model: readableModel(result) ?? configuredClaudeModel("maker"),
+          modelSource: readableModel(result) ? "reported" : "configured",
           available: true,
           state: "ready",
           detail: "Drafted one bounded file · no write authority",
@@ -1242,6 +1257,7 @@ export class AgentProvider {
           provider: "local",
           name: "Hearth local",
           model: null,
+          modelSource: "unreported",
           available: false,
           state: "degraded",
           detail: "Only literal local replacements are available",
@@ -1296,7 +1312,8 @@ export class AgentProvider {
           residents: this.updateResident("critic", {
             provider: "codex",
             name: "Codex via ACP",
-            model: "Codex",
+            model: null,
+            modelSource: "unreported",
             available: true,
             state: "ready",
             detail: "Independent patch review · read-only",
@@ -1355,6 +1372,7 @@ export class AgentProvider {
       if (result.is_error || !isProjectEditCritique(critique)) {
         throw new Error("Critic returned no usable patch review.");
       }
+      const model = readableModel(result);
       this.status = {
         selection: this.selection,
         active: "claude-code",
@@ -1363,15 +1381,16 @@ export class AgentProvider {
         name: "Claude Code",
         models: {
           ...this.status.models,
-          critic: readableModel(result) ?? "Claude Fable 5"
+          critic: model ?? "Claude configured Fable"
         },
-        detail: "Critic fell back from Codex to Claude Fable 5 for this patch review",
+        detail: "Critic fell back from Codex to configured Claude Fable for this patch review",
         lastError: codexError,
         lastUsedAt: now(),
         residents: this.updateResident("critic", {
           provider: "claude-code",
           name: "Claude Code",
-          model: readableModel(result) ?? "Claude Fable 5",
+          model: model ?? configuredClaudeModel("critic"),
+          modelSource: model ? "reported" : "configured",
           available: true,
           state: "ready",
           detail: "Fallback patch review · no write authority",
@@ -1470,11 +1489,11 @@ export class AgentProvider {
           this.status?.models.companion ?? configuredModelLabel("companion"),
         critic:
           this.status?.models.critic ??
-          (this.codex.available ? "Codex" : "Claude Fable 5"),
+          (this.codex.available ? "Codex" : "Claude configured Fable"),
         librarian:
           this.status?.models.librarian ?? configuredModelLabel("librarian")
       },
-      detail: `${this.version} · Companion + Maker + Librarian on Opus · Critic on ${this.codex.available ? "Codex via ACP" : "Fable fallback"}`,
+      detail: `${this.version} · Companion + Maker + Librarian configured for Opus · Critic on ${this.codex.available ? "Codex via ACP (model not reported)" : "configured Fable fallback"}`,
       lastError: null,
       lastUsedAt: this.status?.lastUsedAt ?? null,
       residents: this.baseResidentStatuses("ready")
@@ -1489,7 +1508,8 @@ export class AgentProvider {
     const makeClaude = (agent: ReasoningAgent): ResidentProviderStatus => ({
       provider: local || !claudeReady ? "local" : "claude-code",
       name: local || !claudeReady ? "Hearth local" : "Claude Code",
-      model: local || !claudeReady ? null : "Claude Opus 5",
+      model: local || !claudeReady ? null : configuredClaudeModel(agent),
+      modelSource: local || !claudeReady ? "unreported" : "configured",
       available: local || claudeReady,
       state: local ? "local" : claudeReady ? "ready" : "degraded",
       detail: local
@@ -1511,7 +1531,8 @@ export class AgentProvider {
       residents.critic = {
         provider: "codex",
         name: "Codex via ACP",
-        model: "Codex",
+        model: null,
+        modelSource: "unreported",
         available: true,
         state: "ready",
         detail: "Independent read-only review",
@@ -1522,7 +1543,8 @@ export class AgentProvider {
     } else if (!local && claudeReady) {
       residents.critic = {
         ...residents.critic,
-        model: "Claude Fable 5",
+        model: configuredClaudeModel("critic"),
+        modelSource: "configured",
         detail: "Codex unavailable · fallback review"
       };
     }
@@ -1549,6 +1571,7 @@ export class AgentProvider {
         provider: "local",
         name: "Critic unavailable",
         model: null,
+        modelSource: "unreported",
         available: false,
         state: "degraded",
         detail: "Codex and the Fable fallback could not answer",

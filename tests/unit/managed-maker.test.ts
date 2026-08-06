@@ -170,6 +170,7 @@ describe("managed Maker boundary", () => {
     ].join("\n"));
 
     expect(usage).toEqual({
+      model: "Claude Opus 5",
       inputTokens: 1,
       outputTokens: 500,
       cachedReadTokens: 120_000,

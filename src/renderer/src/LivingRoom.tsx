@@ -16,6 +16,7 @@ import type {
   LivingRoomSnapshot
 } from "../../shared/contracts";
 import { ResidentAvatar } from "./ResidentAvatar";
+import { residentProviderLabel } from "./provider-label";
 
 const RESIDENTS: Array<{
   id: AgentKey;
@@ -39,13 +40,10 @@ function residentName(agent: AgentKey | null): string {
 function providerLabel(data: BootstrapData, agent: AgentKey): string {
   const resident = data.runtime.provider.residents?.[agent];
   if (resident) {
-    if (resident.provider === "local") return resident.name;
-    return resident.fallbackFrom
-      ? `${resident.model ?? resident.name} · fallback`
-      : resident.model ?? resident.name;
+    return residentProviderLabel(resident);
   }
   return data.runtime.provider.models[agent] ??
-    (agent === "critic" ? "Codex" : "Claude Opus 5");
+    (agent === "critic" ? "Codex" : "Claude configured Opus");
 }
 
 function CompanionFace({ thinking = false }: { thinking?: boolean }): ReactNode {
