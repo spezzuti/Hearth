@@ -56,8 +56,9 @@ Changes should preserve these rules:
 - Fallback providers are labeled honestly.
 - New UI should remain comfortable rather than compressing text to avoid scrolling.
 
-Read [docs/architecture.md](docs/architecture.md) and
-[docs/security-notes.md](docs/security-notes.md) before changing a capability boundary.
+Read [docs/current-status.md](docs/current-status.md), [docs/roadmap.md](docs/roadmap.md),
+[docs/architecture.md](docs/architecture.md), and [docs/security-notes.md](docs/security-notes.md)
+before changing a capability boundary or beginning a roadmap milestone.
 
 ## Pull requests
 

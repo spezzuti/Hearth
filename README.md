@@ -224,6 +224,8 @@ providers.
 ## Documentation
 
 - [Reviewer Guide](docs/reviewer-guide.md) — the shortest path through the important behavior
+- [Current Status](docs/current-status.md) — shipped capability and the latest engineering audit
+- [Roadmap](docs/roadmap.md) — the integrated hardening and product plan
 - [Architecture](docs/architecture.md) — processes, providers, persistence, and data flow
 - [Security Notes](docs/security-notes.md) — detailed capability and trust boundaries
 - [Contributing](CONTRIBUTING.md) — development workflow and design constraints

@@ -8,9 +8,11 @@ it.
 Read:
 
 1. `README.md`
-2. `docs/architecture.md`
-3. the relevant section of `docs/security-notes.md`
-4. the nearest ADR when a change affects process, provider, terminal, persistence, or context flow
+2. `docs/current-status.md`
+3. `docs/roadmap.md` when selecting or sequencing new work
+4. `docs/architecture.md`
+5. the relevant section of `docs/security-notes.md`
+6. the nearest ADR when a change affects process, provider, terminal, persistence, or context flow
 
 ## Commands
 

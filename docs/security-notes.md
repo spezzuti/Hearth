@@ -270,6 +270,18 @@
 
 Workshop uses Microsoft’s `node-pty` 1.2 preview because it provides the current prebuilt Windows ConPTY binding. The stable release requires local Spectre-mitigated Visual Studio libraries to rebuild on this machine. Hearth pins the exact preview version, tests the prebuilt binding in the actual Electron runtime, disables package-time native rebuilding, and ships only the Windows x64 prebuild without debug symbols.
 
-## Development-tool advisory
+## Dependency advisory status
 
-The current latest `electron-builder` dependency tree contains older `brace-expansion` versions flagged for an out-of-memory denial-of-service advisory. These packages are build-time tooling and are not shipped as Hearth runtime dependencies. The latest builder release does not yet expose a non-breaking fixed tree, so this remains an explicit toolchain watch item rather than forcing an incompatible downgrade. Builder inputs must remain repository-controlled.
+The dependency audit is time-sensitive. The 2026-08-05 audit reports two newly disclosed issues in
+the runtime dependency tree:
+
+- `fast-uri` 3.1.4 through the Claude/MCP validation path is affected by
+  [GHSA-7p8r-x3mc-p8w7](https://github.com/advisories/GHSA-7p8r-x3mc-p8w7); and
+- `hono` 4.12.33 through the Model Context Protocol SDK is affected by
+  [GHSA-8j4g-w8fx-2239](https://github.com/advisories/GHSA-8j4g-w8fx-2239).
+
+The build-tool tree also contains affected `brace-expansion` versions. `npm audit fix --dry-run`
+reports patch-level transitive replacements for these packages without direct dependency changes.
+This repair is the first item in the current [roadmap](roadmap.md), followed by the complete unit,
+Electron, packaged ACP, Companion-network, and installer smoke gates. Until that repair is applied,
+the repository must not describe the production audit as clean.
