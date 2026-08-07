@@ -9,7 +9,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.48.0. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 prototype, version 0.49.0. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
@@ -17,6 +17,9 @@ saved research, ideas, decisions, and clear return points.
 
 - **See the work, not just the answer.** Workshop keeps Claude Code's plans, tool activity, diffs,
   token use, modes, effort, and permissions in the main workstream.
+- **Know whether the provider is alive.** Activity-aware turn health separates tool progress,
+  permission waits, quiet connections, real stalls, interruptions, and failures; Provider Doctor
+  exposes the bounded local facts behind that state.
 - **Keep a human-sized conversation beside it.** Maker is the technical partner on the right, not a
   second terminal or a fake summary of hidden work.
 - **Use specialists without blurring their roles.** Critic provides an independent read-only review;

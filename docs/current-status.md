@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.48.0. It records the Phase 0 trust-baseline
-work completed and locally verified on 2026-08-06.
+This is the current engineering snapshot for Hearth 0.49.0. It records the Phase 1 turn-health and
+Provider Doctor work completed and locally verified on 2026-08-07.
 
 ## What is already working
 
@@ -35,10 +35,43 @@ and explicit milestone records resume with 0.48.0:
 | 0.44–0.46 | Workshop was unified into a project-bound workbench and visually rebuilt around the Claude Code flow. |
 | 0.47.x | Manual, Auto, and Planning controls, effort selection, context usage, terminal-like streaming, and active-turn interruption were completed and repaired. |
 | 0.47.2 | Living Room conversations, pressure tests, handoffs, and managed Workshop interruption are integrated. |
-| 0.48.0 current | Dependency trust baseline, isolated runtime upgrades, Windows CI, and truthful provider identity. |
+| 0.48.0 | Dependency trust baseline, isolated runtime upgrades, Windows CI, and truthful provider identity. |
+| 0.49.0 current | Activity-aware managed turns, explicit recovery fate, per-turn usage, and Provider Doctor. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
+
+## Phase 1 outcome
+
+### Managed turn health
+
+- Managed Maker now uses a renewable ten-minute idle deadline and a separate two-hour safety
+  ceiling. Provider events, tool updates, mode/config replies, and permission decisions renew health.
+- Workshop distinguishes working, waiting for you, quiet-but-connected, stalled, interrupted,
+  failed, and completed states from runtime-owned evidence.
+- Every bounded failure records a class, plain-language fate, and whether resending is plausibly
+  safe. Hearth never auto-replays a turn; mutating activity produces a visible caution.
+- Relaunch cleanup clears pending permissions and marks an orphaned turn as interrupted with an
+  explicit no-replay fate.
+- The final 0.49.0 audit also advanced the dev-only `js-yaml` lock entry to 4.3.1 after a new
+  quadratic-CPU advisory appeared; production and complete dependency audits are clean.
+
+### Usage and recovery truth
+
+- Managed turns persist their reported model, input/output/cache counts, context values, estimated
+  prompt characters, and reporting time separately from the session context meter.
+- Transcript-only usage is shown as a turn delta only when Hearth has a prior baseline; otherwise it
+  stays unknown rather than presenting a session total as one turn.
+- “Start fresh session” retires the selected project's continuation pointer without deleting its
+  visible history or altering a separate terminal record.
+
+### Provider Doctor
+
+- Workshop exposes read-only Claude and Codex checks for adapter version/discovery, executable
+  discovery, auth confidence, handshake, child state, active turns, known sessions, last success,
+  and last bounded error.
+- Setup guidance is visible when something is missing or unverified. Hearth does not install,
+  authenticate, or replay work from the diagnostic panel.
 
 ## Phase 0 outcome
 
@@ -69,12 +102,11 @@ an underlying model the adapter did not disclose.
 
 ## Next engineering findings
 
-### Turn timeout is absolute rather than activity-aware
+### Live soak evidence remains pending
 
-Managed Maker currently has a fifteen-minute turn timeout. Tool progress does not renew an idle
-deadline, and the interface does not distinguish a quiet but healthy model from a stalled adapter,
-dead child process, lost provider connection, or long-running tool. This can terminate legitimate
-long work and gives the user little help when the provider is actually stuck.
+The deterministic suite and production build exercise the contracts and persistence, but the new
+two-hour ceiling is intentionally not waited out in CI. Before 0.49.0 is treated as field-proven, run
+a packaged live long-tool soak plus an adapter-failure and pending-permission shutdown drill.
 
 ### Context visibility is aggregate
 
@@ -86,9 +118,9 @@ provider prompt construction that ACP does not expose.
 
 ## Current quality signal
 
-- The complete `npm run verify` gate passed on 2026-08-06: type checking, 106 unit tests across 15
-  files, the production build, and all 13 serial Electron scenarios.
-- The Electron run exercised continuity, containment, real ConPTY behavior, handoffs, Living Room,
+- Type checking, 106 unit tests across 15 files, the production build, and all 13 serial Electron
+  scenarios pass for 0.49.0. The packaged live soak and failure drill remain release-gate checks.
+- The 0.49.0 Electron run exercised continuity, containment, real ConPTY behavior, handoffs, Living Room,
   project-scoped conversations, reload/relaunch, and responsive layouts.
 - The current rebuilt package passed both the local ConPTY smoke and the optional live Claude/Codex
   ACP smoke. Those remain required whenever provider, interruption, context, or permissions change.

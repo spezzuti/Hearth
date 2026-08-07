@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.48.0 implementation. It is an implementation map, not a
+This document describes the current 0.49.0 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model
@@ -79,9 +79,16 @@ Hearth does not invent an underlying Codex model when the adapter does not discl
 3. Maker opens or resumes a project-scoped Claude ACP session.
 4. ACP events become visible plans, thoughts, tool activities, diffs, permissions, modes, effort,
    and token usage.
-5. The complete technical stream stays in Workshop; Maker's side conversation provides the brief
+5. Provider and tool events renew an idle deadline while a separate two-hour safety ceiling bounds
+   one turn. The persisted health record contains timestamps, process/connection state, failure
+   class, fate, and retry safety—never raw provider output.
+6. The complete technical stream stays in Workshop; Maker's side conversation provides the brief
    human interpretation.
-6. Core persists bounded turn summaries and session identity, not raw PTY output.
+7. Core persists bounded turn summaries and session identity, not raw PTY output.
+
+Provider Doctor reads the same runtime-owned state. It reports adapter and executable discovery,
+auth confidence, ACP handshake/process/session state, last success, and the last bounded error. It
+does not install software, authenticate a provider, or replay work.
 
 If a second message arrives during an active turn, core cancels the first ACP prompt and waits for
 its completion promise before sending the new direction. This provides Claude Code-style

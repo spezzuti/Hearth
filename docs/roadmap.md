@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.48.0 implementation described in
+This roadmap starts from the real Hearth 0.49.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -57,39 +57,45 @@ its first green public run after these commits are pushed before a status badge 
 and no UI claiming more provider certainty than Hearth possesses. **External confirmation pending:**
 the first pushed Windows workflow run.
 
-## Phase 1 — Workshop turn health and Provider Doctor
+## Phase 1 — Workshop turn health and Provider Doctor delivered locally in 0.49.0
 
-This is the first product milestone inspired by Buzz.
+This is the first product milestone inspired by Buzz. The runtime, persistence, renderer, recovery
+controls, and read-only diagnostics are implemented and locally verified. A live packaged long-tool
+soak remains part of the release gate before treating the milestone as field-proven.
 
 ### Turn-health model
 
-- Track turn start, last provider event, last tool event, pending permission, child-process state,
+- Tracks turn start, last provider event, last tool event, pending permission, child-process state,
   connection state, and terminal activity as bounded lifecycle metadata.
-- Use a renewable idle deadline plus a separate absolute safety ceiling. Permission waits and known
+- Uses a renewable ten-minute idle deadline plus a separate two-hour safety ceiling. Permission waits and known
   long-running tools must not look like model stalls.
-- Surface concise states such as **working**, **waiting for you**, **quiet but connected**,
+- Surfaces concise states such as **working**, **waiting for you**, **quiet but connected**,
   **reconnecting**, **stalled**, **interrupted**, and **failed**.
-- Record the failure class and fate without persisting raw provider output.
-- Never automatically replay a turn that may have performed a mutation. Recovery offers may resume
-  the session, start a fresh session, retry only an explicitly safe turn, or open the technical
-  details.
+- Records the failure class and fate without persisting raw provider output.
+- Never automatically replays a turn that may have performed a mutation. Recovery can continue the
+  project-scoped session, consciously resend the direction, or retire the continuation pointer and
+  start fresh. Mutating turns carry a visible warning.
 
 ### Provider Doctor
 
-- Show installed provider and adapter versions, executable discovery, authentication readiness,
+- Shows installed provider and adapter versions, executable discovery, authentication readiness,
   handshake result, active child process, current project session, last successful turn, and last
   bounded error.
-- Detect and reap stale managed adapter processes during orderly startup and shutdown tests.
-- Keep setup and repair actions visible; do not silently install or reauthenticate providers.
+- Existing orderly shutdown and orphan-turn cleanup remain explicit; the release gate exercises
+  adapter shutdown and permission cleanup.
+- Shows bounded setup guidance; it does not silently install or reauthenticate providers.
 
 ### Usage truth
 
-- Store and display usage per managed turn/provider round when reported.
-- Keep session totals, context-window use, cache reads/writes, and estimated local payload size
+- Stores and displays usage per managed turn/provider round when reported. Transcript-only totals
+  are used only when a prior baseline makes an honest delta possible.
+- Keeps session totals, context-window use, cache reads/writes, and estimated local payload size
   visually distinct.
 
-**Exit:** a long healthy tool run does not die because it was quiet, a real stall has an understandable
-fate, and every recovery path is tested against interruption and permission cleanup.
+**Local exit:** 106 deterministic unit tests, all 13 Electron scenarios, and the production build
+pass; health renewal, interruption,
+permission cleanup, restart fate, conscious retry, and fresh-session retirement are represented in
+the implementation. **Release evidence pending:** a packaged live long-tool soak and failure drill.
 
 ## Phase 2 — context inspector and durable continuity
 
