@@ -14,6 +14,7 @@ import { coreRequestSchema } from "../../src/shared/contracts";
 describe("managed Maker boundary", () => {
   it("ships the Claude ACP adapter used by the Workshop harness", () => {
     expect(findClaudeAcpAdapter()).toMatch(/claude-agent-acp[\\/]dist[\\/]index\.js$/);
+    expect(new ClaudeAcpRuntime("claude.exe").diagnostics().adapterVersion).toBe("0.65.0");
   });
 
   it("keeps managed work and permission decisions explicit in the core contract", () => {
@@ -47,6 +48,14 @@ describe("managed Maker boundary", () => {
         payload: { control: { kind: "effort", value: "high" } }
       }).method
     ).toBe("configureMakerSession");
+
+    expect(
+      coreRequestSchema.parse({
+        id: "fresh-session",
+        method: "resetMakerSession",
+        payload: {}
+      }).method
+    ).toBe("resetMakerSession");
   });
 
   it("interrupts an active Workshop turn and continues in the same ACP session", async () => {
@@ -90,12 +99,16 @@ describe("managed Maker boundary", () => {
       sessionId: "maker-session",
       resumedPriorSession: false
     });
+    const firstHealth: string[] = [];
+    const secondHealth: string[] = [];
 
     const first = runtime.reason(
       "C:\\Projects\\Hearth",
       "first-request",
       "Start the long job.",
-      () => undefined
+      (event) => {
+        if (event.type === "health") firstHealth.push(event.health.state);
+      }
     );
     await vi.waitFor(() => {
       expect(internal.turns.has("maker-session")).toBe(true);
@@ -104,7 +117,9 @@ describe("managed Maker boundary", () => {
       "C:\\Projects\\Hearth",
       "second-request",
       "Stop that and do this instead.",
-      () => undefined,
+      (event) => {
+        if (event.type === "health") secondHealth.push(event.health.state);
+      },
       { interruptActive: true }
     );
 
@@ -113,6 +128,8 @@ describe("managed Maker boundary", () => {
     });
     await expect(second).resolves.toBe("Changed direction cleanly.");
     expect(promptCount).toBe(2);
+    expect(firstHealth).toContain("interrupted");
+    expect(secondHealth).toContain("completed");
   });
 
   it("turns explicit conversational mode requests into real ACP modes", () => {

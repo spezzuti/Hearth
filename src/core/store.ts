@@ -409,6 +409,8 @@ function mapWorkshopTurn(row: Record<string, unknown>): WorkshopTurn {
     thoughts: asString(row.thoughts),
     sessionState: jsonValue<MakerSessionState | null>(row.session_state_json, null),
     permissions: jsonValue<MakerPermissionRequest[]>(row.permissions_json, []),
+    health: jsonValue<WorkshopTurn["health"]>(row.health_json, null),
+    usage: jsonValue<WorkshopTurn["usage"]>(row.usage_json, null),
     status: asString(row.status) as WorkshopTurn["status"],
     startedAt: asString(row.started_at),
     updatedAt: asString(row.updated_at),
@@ -1680,13 +1682,48 @@ export class HearthStore {
         throw error;
       }
     }
+
+    if (!applied.includes(28)) {
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        this.db.exec(`
+          ALTER TABLE managed_workshop_turns ADD COLUMN health_json TEXT;
+          ALTER TABLE managed_workshop_turns ADD COLUMN usage_json TEXT;
+        `);
+        this.db
+          .prepare("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)")
+          .run(28, now());
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
   }
 
   private interruptOrphanedWorkshopTurns(): void {
     const timestamp = now();
     this.db.prepare(`
       UPDATE managed_workshop_turns
-      SET status = 'failed', permissions_json = '[]', updated_at = ?, completed_at = ?
+      SET status = 'failed', permissions_json = '[]', updated_at = ?, completed_at = ?,
+          health_json = json_object(
+            'state', 'interrupted',
+            'turnStartedAt', started_at,
+            'lastProviderEventAt', updated_at,
+            'lastToolEventAt', NULL,
+            'lastTerminalActivityAt', NULL,
+            'pendingPermissionSince', NULL,
+            'connection', 'disconnected',
+            'process', 'stopped',
+            'idleDeadlineAt', NULL,
+            'absoluteDeadlineAt', NULL,
+            'failure', json_object(
+              'class', 'interrupted',
+              'message', 'Hearth closed while this turn was still running.',
+              'fate', 'The turn was not replayed when Hearth reopened.',
+              'retrySafe', json('false')
+            )
+          )
       WHERE status = 'running'
     `).run(timestamp, timestamp);
   }
@@ -4299,6 +4336,18 @@ export class HearthStore {
     `).run(JSON.stringify(state), now(), requestId);
   }
 
+  saveWorkshopHealth(requestId: string, health: NonNullable<WorkshopTurn["health"]>): void {
+    this.db.prepare(`
+      UPDATE managed_workshop_turns SET health_json = ?, updated_at = ? WHERE id = ?
+    `).run(JSON.stringify(health), now(), requestId);
+  }
+
+  saveWorkshopUsage(requestId: string, usage: NonNullable<WorkshopTurn["usage"]>): void {
+    this.db.prepare(`
+      UPDATE managed_workshop_turns SET usage_json = ?, updated_at = ? WHERE id = ?
+    `).run(JSON.stringify(usage), now(), requestId);
+  }
+
   saveLatestWorkshopSessionState(
     workspace: ConversationScope,
     state: MakerSessionState
@@ -4407,6 +4456,16 @@ export class HearthStore {
           updated_at = excluded.updated_at
       `)
       .run(rootPath, sessionId, now());
+  }
+
+  clearManagedMakerSession(rootPath: string): void {
+    this.db.prepare(`
+      INSERT INTO managed_agent_sessions(agent, root_path, session_id, updated_at)
+      VALUES ('maker', ?, '', ?)
+      ON CONFLICT(agent, root_path) DO UPDATE SET
+        session_id = '',
+        updated_at = excluded.updated_at
+    `).run(rootPath, now());
   }
 
   saveTerminalSession(session: TerminalSession): void {

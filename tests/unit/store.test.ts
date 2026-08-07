@@ -372,6 +372,31 @@ describe("HearthStore continuity contract", () => {
       cachedReadTokens: 0,
       cachedWriteTokens: 0
     });
+    store.saveWorkshopHealth(requestId, {
+      state: "working",
+      turnStartedAt: "2026-08-01T12:00:00.000Z",
+      lastProviderEventAt: "2026-08-01T12:00:02.000Z",
+      lastToolEventAt: "2026-08-01T12:00:01.000Z",
+      lastTerminalActivityAt: null,
+      pendingPermissionSince: null,
+      connection: "connected",
+      process: "running",
+      idleDeadlineAt: "2026-08-01T12:10:02.000Z",
+      absoluteDeadlineAt: "2026-08-01T14:00:00.000Z",
+      failure: null
+    });
+    store.saveWorkshopUsage(requestId, {
+      model: "Claude Opus 5",
+      modelSource: "reported",
+      inputTokens: 28_000,
+      outputTokens: 3_400,
+      cachedReadTokens: 0,
+      cachedWriteTokens: 0,
+      contextUsed: 31_400,
+      contextSize: 100_000,
+      estimatedPromptCharacters: 31,
+      reportedAt: "2026-08-01T12:00:03.000Z"
+    });
     store.finishWorkshopTurn(requestId, "completed");
 
     expect(store.getWorkshopTurns(workspace)).toMatchObject([
@@ -382,17 +407,25 @@ describe("HearthStore continuity contract", () => {
         thoughts: "The state transition is shared across two callers.",
         activities: [{ id: "tool-read", locations: ["src/protocol/flow.ts"] }],
         plan: [{ status: "completed" }, { status: "in_progress" }],
-        sessionState: { modeId: "plan", contextUsed: 31_400 }
+        sessionState: { modeId: "plan", contextUsed: 31_400 },
+        health: { state: "working", connection: "connected" },
+        usage: { model: "Claude Opus 5", outputTokens: 3_400 }
       }
     ]);
     expect(store.getAgentConversation("maker", workspace)).toHaveLength(0);
+    store.saveManagedMakerSession(workspace.rootPath, "session-to-retire");
+    expect(store.getMakerContinuationSession(workspace.rootPath)).toBe("session-to-retire");
+    store.clearManagedMakerSession(workspace.rootPath);
+    expect(store.getMakerContinuationSession(workspace.rootPath)).toBeNull();
     store.close();
 
     const reopened = await HearthStore.open(dataDirectory, workspace.rootPath);
     expect(reopened.getWorkshopTurns(workspace)[0]).toMatchObject({
       id: requestId,
       status: "completed",
-      activities: [{ title: "Read protocol flow" }]
+      activities: [{ title: "Read protocol flow" }],
+      health: { lastToolEventAt: "2026-08-01T12:00:01.000Z" },
+      usage: { estimatedPromptCharacters: 31 }
     });
     reopened.close();
   });

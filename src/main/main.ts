@@ -552,6 +552,10 @@ function registerIpc(): void {
     assertTrustedSender(event);
     return core.invoke("configureMakerSession", { control });
   });
+  ipcMain.handle("hearth:reset-maker-session", (event) => {
+    assertTrustedSender(event);
+    return core.invoke("resetMakerSession", {});
+  });
   ipcMain.handle(
     "hearth:set-agent-provider",
     (event, selection: AgentProviderSelection) => {

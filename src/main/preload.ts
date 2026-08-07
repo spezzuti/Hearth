@@ -69,6 +69,7 @@ const api: HearthApi = {
     ipcRenderer.invoke("hearth:resolve-maker-permission", permissionId, optionId),
   configureMakerSession: (control: MakerSessionControl) =>
     ipcRenderer.invoke("hearth:configure-maker-session", control),
+  resetMakerSession: () => ipcRenderer.invoke("hearth:reset-maker-session"),
   setAgentProvider: (selection: AgentProviderSelection) =>
     ipcRenderer.invoke("hearth:set-agent-provider", selection),
   getNotificationStatus: () =>

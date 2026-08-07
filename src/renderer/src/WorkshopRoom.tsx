@@ -14,11 +14,14 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import type {
   BootstrapData,
+  AgentProviderStatus,
   ConversationMessage,
   MakerPermissionRequest,
   MakerProposal,
   MakerSessionControl,
   MakerSessionState,
+  WorkshopTurnHealth,
+  WorkshopTurnUsage,
   MakerWorkActivity,
   MakerWorkPlanEntry,
   TerminalEvent,
@@ -1170,6 +1173,7 @@ function WorkshopTurnTranscript({
   busy,
   interrupted,
   onRetry,
+  onStartFresh,
   onResolvePermission
 }: {
   turn: WorkshopTurn;
@@ -1177,6 +1181,7 @@ function WorkshopTurnTranscript({
   busy: boolean;
   interrupted: boolean;
   onRetry: (prompt: string) => Promise<boolean>;
+  onStartFresh: () => Promise<void>;
   onResolvePermission: (permissionId: string, optionId: string) => Promise<void>;
 }): ReactNode {
   const sessionInputTokens = turn.sessionState?.inputTokens == null
@@ -1195,6 +1200,21 @@ function WorkshopTurnTranscript({
     ? turn.sessionState?.contextUsed ?? sessionTokenTotal
     : sessionTokenTotal ?? turn.sessionState?.contextUsed ?? null;
   const thinkingLabel = runningFor >= 10_000 ? "still thinking…" : "thinking";
+  const healthLabel = turn.health?.state === "waiting_for_user"
+    ? "waiting for you"
+    : turn.health?.state === "quiet_connected"
+      ? "quiet, still connected"
+      : turn.health?.state === "reconnecting"
+        ? "reconnecting"
+        : turn.health?.state === "stalled"
+          ? "stalled"
+          : turn.health?.state === "working"
+            ? thinkingLabel
+            : null;
+  const turnUsageTotal = turn.usage?.inputTokens != null && turn.usage.outputTokens != null
+    ? turn.usage.inputTokens + turn.usage.outputTokens +
+      (turn.usage.cachedReadTokens ?? 0) + (turn.usage.cachedWriteTokens ?? 0)
+    : null;
   return (
     <section className={`claude-turn is-${turn.status}`} data-turn-id={turn.id}>
       <header className="claude-turn-prompt">
@@ -1204,7 +1224,7 @@ function WorkshopTurnTranscript({
 
       <div className="claude-maker-line">
         <strong>Maker</strong>
-        <span>{turn.status === "running" ? `(${thinkingLabel})` : "Workstream"}</span>
+        <span>{turn.status === "running" ? `(${healthLabel ?? thinkingLabel})` : "Workstream"}</span>
         {turn.status === "running" && liveTokenCount != null ? (
           <small className="claude-live-token">{formatTokenCount(liveTokenCount)} tokens</small>
         ) : null}
@@ -1266,12 +1286,26 @@ function WorkshopTurnTranscript({
         );
       })}
 
+      {turn.health?.failure ? (
+        <details className="claude-turn-recovery">
+          <summary>What happened</summary>
+          <p>{turn.health.failure.message}</p>
+          <small>{turn.health.failure.fate}</small>
+          {!turn.health.failure.retrySafe ? <em>This run may have changed files. Check the workstream before sending the direction again.</em> : null}
+          <code>{turn.health.failure.class.replaceAll("_", " ")}</code>
+        </details>
+      ) : null}
+
       <footer className="claude-turn-status">
         {turn.status === "running" ? <span className="managed-running-spinner" aria-hidden="true" /> : <span className={`claude-turn-result is-${turn.status}`} aria-hidden="true">{turn.status === "completed" ? "✓" : turn.status === "cancelled" ? "■" : "×"}</span>}
-        <strong>{turn.status === "running" ? thinkingLabel : turn.status === "completed" ? "Complete" : turn.status === "cancelled" ? interrupted ? "Interrupted" : "Stopped" : "Interrupted"}</strong>
-        {liveTokenCount != null ? <span>({formatTokenCount(liveTokenCount)} tokens)</span> : null}
+        <strong>{turn.status === "running" ? healthLabel ?? thinkingLabel : turn.status === "completed" ? "Complete" : turn.status === "cancelled" ? interrupted ? "Interrupted" : "Stopped" : "Interrupted"}</strong>
+        {turnUsageTotal != null ? <span>({formatTokenCount(turnUsageTotal)} tokens · this turn)</span> : liveTokenCount != null ? <span>({formatTokenCount(liveTokenCount)} tokens · session)</span> : null}
+        {turn.usage?.model ? <span className="claude-turn-model">{turn.usage.model}</span> : null}
         {turn.status === "failed" || turn.status === "cancelled" ? (
-          <button type="button" disabled={busy} onClick={() => void onRetry(turn.prompt)}>Run again</button>
+          <>
+            <button type="button" disabled={busy} onClick={() => void onRetry(turn.prompt)}>{turn.health?.failure?.retrySafe ? "Retry this direction" : "Send direction again"}</button>
+            <button type="button" disabled={busy} onClick={() => void onStartFresh()}>Start fresh session</button>
+          </>
         ) : null}
       </footer>
     </section>
@@ -1280,12 +1314,15 @@ function WorkshopTurnTranscript({
 
 function ClaudeWorkbench({
   projectName,
+  provider,
   turns,
   requestId,
   activities,
   plan,
   thoughts,
   sessionState,
+  turnHealth,
+  turnUsage,
   permissions,
   messages,
   working,
@@ -1293,16 +1330,20 @@ function ClaudeWorkbench({
   onTalk,
   onConfigureSession,
   onCancel,
+  onStartFresh,
   onResolvePermission,
   initialDraft
 }: {
   projectName: string;
+  provider: AgentProviderStatus;
   turns: WorkshopTurn[];
   requestId: string | null;
   activities: MakerWorkActivity[];
   plan: MakerWorkPlanEntry[];
   thoughts: string;
   sessionState: MakerSessionState | null;
+  turnHealth: WorkshopTurnHealth | null;
+  turnUsage: WorkshopTurnUsage | null;
   permissions: MakerPermissionRequest[];
   messages: ConversationMessage[];
   working: boolean;
@@ -1310,6 +1351,7 @@ function ClaudeWorkbench({
   onTalk: (text: string) => Promise<boolean>;
   onConfigureSession: (control: MakerSessionControl) => Promise<boolean>;
   onCancel: () => Promise<void>;
+  onStartFresh: () => Promise<void>;
   onResolvePermission: (permissionId: string, optionId: string) => Promise<void>;
   initialDraft: { id: string; text: string } | null;
 }): ReactNode {
@@ -1332,6 +1374,8 @@ function ClaudeWorkbench({
         thoughts,
         sessionState,
         permissions,
+        health: turnHealth ?? persistedCurrent?.health ?? null,
+        usage: turnUsage ?? persistedCurrent?.usage ?? null,
         status: working ? "running" : persistedCurrent?.status ?? "completed",
         startedAt: persistedCurrent?.startedAt ?? latestUser?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1454,6 +1498,34 @@ function ClaudeWorkbench({
           <span className="managed-session-chip">{makerSessionModelLabel(effectiveSessionState)}</span>
           <span className={`managed-session-chip is-mode is-${effectiveSessionState?.modeId ?? "default"}`}>{makerModeLabel(effectiveSessionState)}</span>
           {effectiveSessionState?.effortName ? <span className="managed-session-chip is-effort">{effectiveSessionState.effortName} effort</span> : null}
+          {provider.diagnostics ? (
+            <details className="provider-doctor">
+              <summary>Provider Doctor</summary>
+              <div>
+                <header><strong>Provider Doctor</strong><small>Read-only checks · {formatTime(provider.diagnostics.checkedAt)}</small></header>
+                {[provider.diagnostics.claude, provider.diagnostics.codex].map((runtime) => (
+                  <section key={runtime.label}>
+                    <h4>{runtime.label}</h4>
+                    <dl>
+                      <div><dt>Adapter</dt><dd>{runtime.adapterFound ? runtime.adapterVersion ?? "found" : "missing"}</dd></div>
+                      <div><dt>Executable</dt><dd>{runtime.executableFound ? "found" : "missing"}</dd></div>
+                      <div><dt>Auth</dt><dd>{runtime.authReadiness.replace("_", " ")}</dd></div>
+                      <div><dt>Handshake</dt><dd>{runtime.handshake.replace("_", " ")}</dd></div>
+                      <div><dt>Process</dt><dd>{runtime.child} · {runtime.activeTurns} active</dd></div>
+                      <div><dt>Project session</dt><dd>{runtime.knownSessions ? "known" : "none yet"}</dd></div>
+                      <div><dt>Last handshake</dt><dd>{runtime.lastHandshakeAt ? formatTime(runtime.lastHandshakeAt) : "never"}</dd></div>
+                      <div><dt>Last success</dt><dd>{runtime.lastSuccessAt ? formatTime(runtime.lastSuccessAt) : "never"}</dd></div>
+                    </dl>
+                    {runtime.lastError ? <p>{runtime.lastError}</p> : null}
+                    {!runtime.adapterFound ? <p>{runtime.label}'s bundled adapter is missing. Reinstall or repair Hearth before using this provider.</p> : null}
+                    {runtime.adapterFound && !runtime.executableFound ? <p>{runtime.label === "Claude Code" ? "Install Claude Code and restart Hearth." : "The bundled Codex executable was not found; repair the Hearth installation."}</p> : null}
+                    {runtime.authReadiness === "unverified" && runtime.adapterFound && runtime.executableFound ? <p className="is-guidance">Authentication has not been proved by a successful turn yet. Hearth will surface the provider's sign-in error; it will not sign in for you.</p> : null}
+                  </section>
+                ))}
+                <footer>Hearth never installs, signs in, or retries work from this panel.</footer>
+              </div>
+            </details>
+          ) : null}
         </div>
       </header>
 
@@ -1467,7 +1539,7 @@ function ClaudeWorkbench({
         }}
       >
         {!visibleTurns.length ? <div className="claude-transcript-empty"><span aria-hidden="true">›_</span><strong>Maker’s ready.</strong><p>Give him the work below. The full technical run stays here.</p></div> : null}
-        {visibleTurns.map((turn, index) => <WorkshopTurnTranscript turn={turn} nowMs={nowMs} busy={busy} interrupted={turn.status === "cancelled" && index < visibleTurns.length - 1} onRetry={onTalk} onResolvePermission={onResolvePermission} key={turn.id} />)}
+        {visibleTurns.map((turn, index) => <WorkshopTurnTranscript turn={turn} nowMs={nowMs} busy={busy} interrupted={turn.status === "cancelled" && index < visibleTurns.length - 1} onRetry={onTalk} onStartFresh={onStartFresh} onResolvePermission={onResolvePermission} key={turn.id} />)}
       </div>
       {!followLatest ? <button className="claude-jump-latest" type="button" onClick={scrollToLatest}>Jump to latest ↓</button> : null}
 
@@ -1839,10 +1911,13 @@ export function WorkshopRoom({
   workPlan,
   thoughts,
   sessionState,
+  turnHealth,
+  turnUsage,
   permissions,
   working,
   onResolvePermission,
   onCancelAgent,
+  onStartFresh,
   proposal,
   onUpdateProposal,
   onDiscardProposal,
@@ -1873,10 +1948,13 @@ export function WorkshopRoom({
   workPlan: MakerWorkPlanEntry[];
   thoughts: string;
   sessionState: MakerSessionState | null;
+  turnHealth: WorkshopTurnHealth | null;
+  turnUsage: WorkshopTurnUsage | null;
   permissions: MakerPermissionRequest[];
   working: boolean;
   onResolvePermission: (permissionId: string, optionId: string) => Promise<void>;
   onCancelAgent: () => Promise<void>;
+  onStartFresh: () => Promise<void>;
   proposal: MakerProposal | null;
   onUpdateProposal: (proposalId: string, instruction: string) => Promise<void>;
   onDiscardProposal: (proposalId: string) => Promise<void>;
@@ -2134,12 +2212,15 @@ export function WorkshopRoom({
         {workbench === "maker" ? (
           <ClaudeWorkbench
             projectName={data.workspace.selectedProject.name}
+            provider={data.runtime.provider}
             turns={data.workshop.turns}
             requestId={workRequestId}
             activities={workActivities}
             plan={workPlan}
             thoughts={thoughts}
             sessionState={sessionState}
+            turnHealth={turnHealth}
+            turnUsage={turnUsage}
             permissions={permissions}
             messages={data.conversations.maker}
             working={working && Boolean(workRequestId)}
@@ -2147,6 +2228,7 @@ export function WorkshopRoom({
             onTalk={talk}
             onConfigureSession={onConfigureSession}
             onCancel={onCancelAgent}
+            onStartFresh={onStartFresh}
             onResolvePermission={onResolvePermission}
             initialDraft={initialDraft}
           />

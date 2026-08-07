@@ -39,6 +39,8 @@ import type {
   MakerPermissionRequest,
   MakerSessionControl,
   MakerSessionState,
+  WorkshopTurnHealth,
+  WorkshopTurnUsage,
   MakerWorkPlanEntry,
   MakerWorkActivity,
   NotificationPreferences,
@@ -4084,6 +4086,8 @@ export function App(): ReactNode {
   const [makerWorkPlan, setMakerWorkPlan] = useState<MakerWorkPlanEntry[]>([]);
   const [makerThoughts, setMakerThoughts] = useState("");
   const [makerSessionState, setMakerSessionState] = useState<MakerSessionState | null>(null);
+  const [makerTurnHealth, setMakerTurnHealth] = useState<WorkshopTurnHealth | null>(null);
+  const [makerTurnUsage, setMakerTurnUsage] = useState<WorkshopTurnUsage | null>(null);
   const [makerPermissions, setMakerPermissions] = useState<MakerPermissionRequest[]>([]);
   const [makerWorkRequestId, setMakerWorkRequestId] = useState<string | null>(null);
   const [makerWorking, setMakerWorking] = useState(false);
@@ -4159,6 +4163,8 @@ export function App(): ReactNode {
     setMakerWorkPlan(activeTurn?.plan ?? []);
     setMakerThoughts(activeTurn?.thoughts ?? "");
     setMakerSessionState(activeTurn?.sessionState ?? null);
+    setMakerTurnHealth(activeTurn?.health ?? null);
+    setMakerTurnUsage(activeTurn?.usage ?? null);
     setMakerPermissions(activeTurn?.permissions ?? []);
     setMakerWorkRequestId(activeTurn?.id ?? null);
     setMakerWorking(Boolean(activeTurn));
@@ -4275,8 +4281,8 @@ export function App(): ReactNode {
         makerEventProject === undefined ||
         makerEventProject === selectedProjectIdRef.current;
       if (!belongsToSelectedProject) {
-        if (event.type === "completed") void load();
-        if (event.type === "completed" || event.type === "cancelled") {
+        if (event.type === "completed" || event.type === "failed") void load();
+        if (event.type === "completed" || event.type === "cancelled" || event.type === "failed") {
           makerRequestProjectsRef.current.delete(event.requestId);
         }
         return;
@@ -4289,6 +4295,8 @@ export function App(): ReactNode {
           setMakerWorkPlan([]);
           setMakerThoughts("");
           setMakerPermissions([]);
+          setMakerTurnHealth(null);
+          setMakerTurnUsage(null);
         } else if (event.type === "activity") {
           setMakerWorkActivities((current) => {
             const existing = current.findIndex((item) => item.id === event.activity.id);
@@ -4303,6 +4311,10 @@ export function App(): ReactNode {
           setMakerWorkPlan(event.entries);
         } else if (event.type === "session_state") {
           setMakerSessionState(event.state);
+        } else if (event.type === "health") {
+          setMakerTurnHealth(event.health);
+        } else if (event.type === "usage") {
+          setMakerTurnUsage(event.usage);
         } else if (event.type === "permission") {
           setMakerPermissions((current) => [
             ...current.filter((item) => item.id !== event.permission.id),
@@ -4312,13 +4324,13 @@ export function App(): ReactNode {
           setMakerPermissions((current) =>
             current.filter((item) => item.id !== event.permissionId)
           );
-        } else if (event.type === "completed" || event.type === "cancelled") {
+        } else if (event.type === "completed" || event.type === "cancelled" || event.type === "failed") {
           setMakerWorking(false);
           setMakerPermissions([]);
           makerRequestProjectsRef.current.delete(event.requestId);
         }
       }
-      if (event.type === "completed") {
+      if (event.type === "completed" || event.type === "failed") {
         void load();
       }
       setAgentStreams((current) => {
@@ -4353,7 +4365,7 @@ export function App(): ReactNode {
             }
           };
         }
-        if (event.type === "completed" || event.type === "cancelled") {
+        if (event.type === "completed" || event.type === "cancelled" || event.type === "failed") {
           return {
             ...current,
             [event.agent]: null
@@ -5007,6 +5019,18 @@ export function App(): ReactNode {
     }
   }
 
+  async function resetMakerSession(): Promise<void> {
+    try {
+      await window.hearth.resetMakerSession();
+      setMakerSessionState(null);
+      setMakerTurnHealth(null);
+      setMakerTurnUsage(null);
+      setToast("Fresh Maker session ready. Your previous workstream stays in the project history.");
+    } catch (reason) {
+      setToast(reason instanceof Error ? reason.message : "Maker could not start a fresh session.");
+    }
+  }
+
   async function resolveMakerPermission(
     permissionId: string,
     optionId: string
@@ -5430,10 +5454,13 @@ export function App(): ReactNode {
               workPlan={makerWorkPlan}
               thoughts={makerThoughts}
               sessionState={makerSessionState}
+              turnHealth={makerTurnHealth}
+              turnUsage={makerTurnUsage}
               permissions={makerPermissions}
               working={makerWorking}
               onResolvePermission={resolveMakerPermission}
               onCancelAgent={() => cancelAgentMessage("maker")}
+              onStartFresh={resetMakerSession}
               proposal={data.makerProposal}
               onUpdateProposal={updateMakerProposal}
               onDiscardProposal={discardMakerProposal}

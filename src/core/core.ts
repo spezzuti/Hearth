@@ -468,13 +468,35 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
                         requestId: request.id,
                         entries: event.entries
                       });
-                    } else {
+                    } else if (event.type === "session_state") {
                       store.saveWorkshopSessionState(request.id, event.state);
                       emitAgentEvent({
                         type: "session_state",
                         agent: "maker",
                         requestId: request.id,
                         state: event.state
+                      });
+                    } else if (event.type === "health") {
+                      const health = {
+                        ...event.health,
+                        lastTerminalActivityAt: terminalBelongsToProject
+                          ? terminal.snapshot().session?.lastActivityAt ?? null
+                          : null
+                      };
+                      store.saveWorkshopHealth(request.id, health);
+                      emitAgentEvent({
+                        type: "health",
+                        agent: "maker",
+                        requestId: request.id,
+                        health
+                      });
+                    } else if (event.type === "usage") {
+                      store.saveWorkshopUsage(request.id, event.usage);
+                      emitAgentEvent({
+                        type: "usage",
+                        agent: "maker",
+                        requestId: request.id,
+                        usage: event.usage
                       });
                     }
                   },
@@ -510,7 +532,14 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
               cancelReason: error.reason
             };
           }
-          if (managedWorkshop) store.finishWorkshopTurn(request.id, "failed");
+          if (managedWorkshop) {
+            store.finishWorkshopTurn(request.id, "failed");
+            emitAgentEvent({
+              type: "failed",
+              agent: "maker",
+              requestId: request.id
+            });
+          }
           throw error;
         }
         const messages = store.sendAgentMessage(
@@ -565,6 +594,12 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
       );
       store.saveLatestWorkshopSessionState(scope, state);
       return state;
+    }
+    case "resetMakerSession": {
+      const selectedProject = projects.selectedProject();
+      provider.resetManagedMaker(selectedProject.rootPath);
+      store.clearManagedMakerSession(selectedProject.rootPath);
+      return { reset: true as const };
     }
     case "setAgentProvider":
       store.saveAgentProviderPreference(request.payload.selection);

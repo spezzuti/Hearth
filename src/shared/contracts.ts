@@ -217,6 +217,11 @@ export const coreRequestSchema = z.discriminatedUnion("method", [
   }),
   z.object({
     id: z.string().min(1),
+    method: z.literal("resetMakerSession"),
+    payload: z.object({})
+  }),
+  z.object({
+    id: z.string().min(1),
     method: z.literal("setAgentProvider"),
     payload: z.object({
       selection: agentProviderSelectionSchema
@@ -754,7 +759,7 @@ export type LivingRoomEvent =
       message: LivingRoomMessage;
     }
   | {
-      type: "completed" | "cancelled";
+      type: "completed" | "cancelled" | "failed";
       requestId: string;
       threadId: string;
       snapshot: LivingRoomSnapshot;
@@ -826,6 +831,28 @@ export interface AgentProviderStatus {
   lastError: string | null;
   lastUsedAt: string | null;
   residents?: Record<ReasoningAgent, ResidentProviderStatus>;
+  diagnostics?: ProviderDiagnostics;
+}
+
+export interface ProviderRuntimeDiagnostics {
+  label: string;
+  adapterVersion: string | null;
+  adapterFound: boolean;
+  executableFound: boolean;
+  authReadiness: "ready" | "unverified" | "unavailable";
+  handshake: "connected" | "previously_connected" | "not_connected" | "failed";
+  child: "running" | "stopped";
+  activeTurns: number;
+  knownSessions: number;
+  lastHandshakeAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+}
+
+export interface ProviderDiagnostics {
+  checkedAt: string;
+  claude: ProviderRuntimeDiagnostics;
+  codex: ProviderRuntimeDiagnostics;
 }
 
 export interface ResidentProviderStatus {
@@ -932,6 +959,58 @@ export interface MakerPermissionRequest {
   createdAt: string;
 }
 
+export type WorkshopTurnHealthState =
+  | "working"
+  | "waiting_for_user"
+  | "quiet_connected"
+  | "reconnecting"
+  | "stalled"
+  | "interrupted"
+  | "failed"
+  | "completed";
+
+export type WorkshopFailureClass =
+  | "idle_timeout"
+  | "absolute_timeout"
+  | "adapter_exit"
+  | "connection_lost"
+  | "permission_expired"
+  | "provider_error"
+  | "interrupted"
+  | "unknown";
+
+export interface WorkshopTurnHealth {
+  state: WorkshopTurnHealthState;
+  turnStartedAt: string;
+  lastProviderEventAt: string | null;
+  lastToolEventAt: string | null;
+  lastTerminalActivityAt: string | null;
+  pendingPermissionSince: string | null;
+  connection: "connecting" | "connected" | "disconnected";
+  process: "starting" | "running" | "stopped";
+  idleDeadlineAt: string | null;
+  absoluteDeadlineAt: string | null;
+  failure: {
+    class: WorkshopFailureClass;
+    message: string;
+    fate: string;
+    retrySafe: boolean;
+  } | null;
+}
+
+export interface WorkshopTurnUsage {
+  model: string | null;
+  modelSource: "reported" | "configured" | "unreported";
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cachedReadTokens: number | null;
+  cachedWriteTokens: number | null;
+  contextUsed: number | null;
+  contextSize: number | null;
+  estimatedPromptCharacters: number;
+  reportedAt: string;
+}
+
 export interface WorkshopTurn {
   id: string;
   workspaceProjectId: string;
@@ -942,6 +1021,8 @@ export interface WorkshopTurn {
   thoughts: string;
   sessionState: MakerSessionState | null;
   permissions: MakerPermissionRequest[];
+  health: WorkshopTurnHealth | null;
+  usage: WorkshopTurnUsage | null;
   status: "running" | "completed" | "cancelled" | "failed";
   startedAt: string;
   updatedAt: string;
@@ -968,7 +1049,7 @@ export type AgentStreamEvent =
       requestId: string;
     }
   | {
-      type: "completed" | "cancelled";
+      type: "completed" | "cancelled" | "failed";
       agent: ContextAgent;
       requestId: string;
       cancelReason?: "stopped" | "interrupted";
@@ -996,6 +1077,18 @@ export type AgentStreamEvent =
       agent: "maker";
       requestId: string;
       state: MakerSessionState;
+    }
+  | {
+      type: "health";
+      agent: "maker";
+      requestId: string;
+      health: WorkshopTurnHealth;
+    }
+  | {
+      type: "usage";
+      agent: "maker";
+      requestId: string;
+      usage: WorkshopTurnUsage;
     }
   | {
       type: "permission";
@@ -1588,6 +1681,7 @@ export interface HearthApi {
     optionId: string
   ): Promise<{ resolved: true }>;
   configureMakerSession(control: MakerSessionControl): Promise<MakerSessionState>;
+  resetMakerSession(): Promise<{ reset: true }>;
   setAgentProvider(selection: AgentProviderSelection): Promise<AgentProviderStatus>;
   getNotificationStatus(): Promise<DesktopNotificationStatus>;
   setNotificationPreferences(

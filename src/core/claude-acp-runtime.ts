@@ -22,11 +22,16 @@ import type {
   MakerPermissionRequest,
   MakerSessionControl,
   MakerSessionState,
+  WorkshopFailureClass,
+  WorkshopTurnHealth,
+  WorkshopTurnUsage,
   MakerWorkPlanEntry,
   MakerWorkActivity
 } from "../shared/contracts";
 
-const TURN_TIMEOUT_MS = 15 * 60_000;
+const TURN_IDLE_TIMEOUT_MS = 10 * 60_000;
+const TURN_ABSOLUTE_TIMEOUT_MS = 2 * 60 * 60_000;
+const TURN_QUIET_AFTER_MS = 30_000;
 const PERMISSION_TIMEOUT_MS = 10 * 60_000;
 const MAX_REPLY_CHARACTERS = 24_000;
 const MAX_WORK_DETAIL_CHARACTERS = 20_000;
@@ -40,6 +45,8 @@ export type ManagedMakerRuntimeEvent =
   | { type: "thought"; text: string }
   | { type: "plan"; entries: MakerWorkPlanEntry[] }
   | { type: "session_state"; state: MakerSessionState }
+  | { type: "health"; health: WorkshopTurnHealth }
+  | { type: "usage"; usage: WorkshopTurnUsage }
   | { type: "permission"; permission: MakerPermissionRequest }
   | { type: "permission_resolved"; permissionId: string; optionId: string };
 
@@ -48,9 +55,38 @@ interface ActiveTurn {
   reply: string;
   replySegments: string[];
   sawToolCall: boolean;
+  mutationObserved: boolean;
   onEvent: (event: ManagedMakerRuntimeEvent) => void;
   finished: Promise<void>;
   resolveFinished: () => void;
+  health: WorkshopTurnHealth;
+  idleTimer: ReturnType<typeof setTimeout> | null;
+  quietTimer: ReturnType<typeof setTimeout> | null;
+  absoluteTimer: ReturnType<typeof setTimeout> | null;
+  rejectDeadline: ((error: Error) => void) | null;
+}
+
+export class ClaudeAcpTurnDeadlineError extends Error {
+  constructor(readonly failureClass: Extract<WorkshopFailureClass, "idle_timeout" | "absolute_timeout">) {
+    super(failureClass === "idle_timeout"
+      ? "Maker stopped receiving activity from Claude Code."
+      : "Maker reached the two-hour safety ceiling for one turn.");
+    this.name = "ClaudeAcpTurnDeadlineError";
+  }
+}
+
+function isoAfter(milliseconds: number): string {
+  return new Date(Date.now() + milliseconds).toISOString();
+}
+
+function installedAdapterVersion(adapterPath: string | null): string | null {
+  if (!adapterPath) return null;
+  try {
+    const manifest = JSON.parse(readFileSync(path.resolve(adapterPath, "..", "..", "package.json"), "utf8")) as { version?: unknown };
+    return typeof manifest.version === "string" ? manifest.version : null;
+  } catch {
+    return null;
+  }
 }
 
 interface PendingPermission {
@@ -496,6 +532,9 @@ export class ClaudeAcpRuntime {
   private cancelled = new Set<string>();
   private interrupted = new Set<string>();
   private stderr = "";
+  private lastHandshakeAt: string | null = null;
+  private lastSuccessAt: string | null = null;
+  private lastError: string | null = null;
 
   constructor(claudeExecutable: string | null) {
     this.claudeExecutable = claudeExecutable;
@@ -503,6 +542,34 @@ export class ClaudeAcpRuntime {
 
   get available(): boolean {
     return Boolean(this.adapterPath && this.claudeExecutable);
+  }
+
+  resetSession(cwd: string): void {
+    const sessionId = this.sessions.get(cwd);
+    if (!sessionId) return;
+    if (this.turns.has(sessionId)) throw new Error("Stop Maker before starting a fresh session.");
+    this.sessions.delete(cwd);
+    this.sessionStates.delete(sessionId);
+    this.sessionConfigOptions.delete(sessionId);
+    this.pendingModes.delete(sessionId);
+    this.pendingEfforts.delete(sessionId);
+  }
+
+  diagnostics(): import("../shared/contracts").ProviderRuntimeDiagnostics {
+    return {
+      label: "Claude Code",
+      adapterVersion: installedAdapterVersion(this.adapterPath),
+      adapterFound: Boolean(this.adapterPath),
+      executableFound: Boolean(this.claudeExecutable),
+      authReadiness: !this.claudeExecutable ? "unavailable" : this.lastSuccessAt ? "ready" : "unverified",
+      handshake: this.connection ? "connected" : this.lastHandshakeAt ? "previously_connected" : this.lastError ? "failed" : "not_connected",
+      child: this.child?.exitCode == null && this.child ? "running" : "stopped",
+      activeTurns: this.turns.size,
+      knownSessions: this.sessions.size,
+      lastHandshakeAt: this.lastHandshakeAt,
+      lastSuccessAt: this.lastSuccessAt,
+      lastError: this.lastError?.slice(0, 320) ?? null
+    };
   }
 
   async configure(
@@ -568,9 +635,49 @@ export class ClaudeAcpRuntime {
       interruptActive?: boolean;
     }
   ): Promise<string> {
-    const { connection, sessionId, resumedPriorSession } = await this.ensureSession(cwd, continuity);
+    const turnStartedAt = now();
+    const connectingHealth: WorkshopTurnHealth = {
+      state: "reconnecting",
+      turnStartedAt,
+      lastProviderEventAt: null,
+      lastToolEventAt: null,
+      lastTerminalActivityAt: null,
+      pendingPermissionSince: null,
+      connection: "connecting",
+      process: "starting",
+      idleDeadlineAt: null,
+      absoluteDeadlineAt: isoAfter(TURN_ABSOLUTE_TIMEOUT_MS),
+      failure: null
+    };
+    onEvent({ type: "health", health: connectingHealth });
+    let ensured;
+    try {
+      ensured = await this.ensureSession(cwd, continuity);
+    } catch (error) {
+      const health: WorkshopTurnHealth = {
+        ...connectingHealth,
+        state: "failed",
+        connection: "disconnected",
+        process: "stopped",
+        failure: {
+          class: "connection_lost",
+          message: error instanceof Error ? error.message.slice(0, 320) : "Claude Code could not open its managed connection.",
+          fate: "No turn started and nothing was replayed.",
+          retrySafe: true
+        }
+      };
+      onEvent({ type: "health", health });
+      throw error;
+    }
+    const { connection, sessionId, resumedPriorSession } = ensured;
     let modeSwitch: { title: string; status: "completed" | "failed" } | null = null;
     let state = this.sessionStates.get(sessionId) ?? sessionState();
+    const usageBaseline = {
+      inputTokens: state.inputTokens,
+      outputTokens: state.outputTokens,
+      cachedReadTokens: state.cachedReadTokens,
+      cachedWriteTokens: state.cachedWriteTokens
+    };
     const requestedMode = continuity?.requestedMode ?? this.pendingModes.get(sessionId) ?? null;
     if (requestedMode) {
       const requested = requestedMode;
@@ -620,11 +727,30 @@ export class ClaudeAcpRuntime {
       reply: "",
       replySegments: [],
       sawToolCall: false,
+      mutationObserved: false,
       onEvent,
       finished,
-      resolveFinished
+      resolveFinished,
+      health: {
+        state: "working",
+        turnStartedAt,
+        lastProviderEventAt: null,
+        lastToolEventAt: null,
+        lastTerminalActivityAt: null,
+        pendingPermissionSince: null,
+        connection: "connected",
+        process: "running",
+        idleDeadlineAt: isoAfter(TURN_IDLE_TIMEOUT_MS),
+        absoluteDeadlineAt: isoAfter(TURN_ABSOLUTE_TIMEOUT_MS),
+        failure: null
+      },
+      idleTimer: null,
+      quietTimer: null,
+      absoluteTimer: null,
+      rejectDeadline: null
     };
     this.turns.set(sessionId, turn);
+    onEvent({ type: "health", health: turn.health });
     onEvent({ type: "session_state", state });
     if (modeSwitch?.status === "failed") {
       onEvent({
@@ -652,14 +778,15 @@ export class ClaudeAcpRuntime {
         }
       });
     }
-    let timeout: ReturnType<typeof setTimeout> | null = null;
     try {
       const timedOut = new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => {
+        turn.rejectDeadline = reject;
+        turn.absoluteTimer = setTimeout(() => {
           void connection.agent.notify(methods.agent.session.cancel, { sessionId });
-          reject(new Error("Maker's managed session took too long to answer."));
-        }, TURN_TIMEOUT_MS);
+          reject(new ClaudeAcpTurnDeadlineError("absolute_timeout"));
+        }, TURN_ABSOLUTE_TIMEOUT_MS);
       });
+      this.renewIdleDeadline(sessionId);
       let response;
       try {
         if (requestedMode && state.availableModes.some((mode) => mode.id === requestedMode)) {
@@ -670,6 +797,7 @@ export class ClaudeAcpRuntime {
             }),
             timedOut
           ]);
+          this.noteProviderEvent(sessionId);
           this.pendingModes.delete(sessionId);
           state = { ...state, modePending: false };
           this.sessionStates.set(sessionId, state);
@@ -699,6 +827,7 @@ export class ClaudeAcpRuntime {
             ),
             timedOut
           ]);
+          this.noteProviderEvent(sessionId);
           this.sessionConfigOptions.set(sessionId, configResponse.configOptions);
           this.pendingEfforts.delete(sessionId);
           const configState = sessionState(null, configResponse.configOptions);
@@ -717,24 +846,78 @@ export class ClaudeAcpRuntime {
           prompt: [{ type: "text", text: prompt }]
         });
         response = await Promise.race([promptRequest, timedOut]);
+        this.noteProviderEvent(sessionId);
       } catch (error) {
         if (!this.cancelled.has(sessionId)) {
           void connection.agent.notify(methods.agent.session.cancel, { sessionId });
         }
         if (this.cancelled.has(sessionId)) {
+          turn.health = {
+            ...turn.health,
+            state: "interrupted",
+            pendingPermissionSince: null,
+            failure: {
+              class: "interrupted",
+              message: this.interrupted.has(sessionId)
+                ? "A newer direction interrupted this turn."
+                : "You stopped this turn.",
+              fate: "The turn stopped and was not replayed.",
+              retrySafe: !turn.mutationObserved
+            }
+          };
+          onEvent({ type: "health", health: turn.health });
           throw new ClaudeAcpCancelledError(
             this.interrupted.has(sessionId) ? "interrupted" : "stopped"
           );
         }
+        const failureClass: WorkshopFailureClass = error instanceof ClaudeAcpTurnDeadlineError
+          ? error.failureClass
+          : this.connection
+            ? "provider_error"
+            : "connection_lost";
+        turn.health = {
+          ...turn.health,
+          state: failureClass.endsWith("timeout") ? "stalled" : "failed",
+          connection: this.connection ? "connected" : "disconnected",
+          process: this.child?.exitCode == null ? "running" : "stopped",
+          failure: {
+            class: failureClass,
+            message: error instanceof Error ? error.message.slice(0, 320) : "Claude Code could not finish this turn.",
+            fate: "The turn stopped. Hearth did not replay it.",
+            retrySafe: !turn.mutationObserved
+          }
+        };
+        this.lastError = error instanceof Error ? error.message.slice(0, 320) : "Claude Code could not finish this turn.";
+        onEvent({ type: "health", health: turn.health });
         throw error;
       }
       if (response.stopReason === "cancelled") {
+        turn.health = {
+          ...turn.health,
+          state: "interrupted",
+          pendingPermissionSince: null,
+          failure: {
+            class: "interrupted",
+            message: this.interrupted.has(sessionId) ? "A newer direction interrupted this turn." : "Claude Code cancelled this turn.",
+            fate: "The turn stopped and was not replayed.",
+            retrySafe: !turn.mutationObserved
+          }
+        };
+        onEvent({ type: "health", health: turn.health });
         throw new ClaudeAcpCancelledError(
           this.interrupted.has(sessionId) ? "interrupted" : "stopped"
         );
       }
       const transcriptUsage = claudeTranscriptUsage(cwd, sessionId);
       if (response.usage || transcriptUsage) {
+        const delta = (current: number | null | undefined, previous: number | null | undefined): number | null =>
+          current == null || previous == null ? null : Math.max(0, current - previous);
+        const turnUsage = {
+          inputTokens: response.usage?.inputTokens ?? delta(transcriptUsage?.inputTokens, usageBaseline.inputTokens),
+          outputTokens: response.usage?.outputTokens ?? delta(transcriptUsage?.outputTokens, usageBaseline.outputTokens),
+          cachedReadTokens: response.usage?.cachedReadTokens ?? delta(transcriptUsage?.cachedReadTokens, usageBaseline.cachedReadTokens),
+          cachedWriteTokens: response.usage?.cachedWriteTokens ?? delta(transcriptUsage?.cachedWriteTokens, usageBaseline.cachedWriteTokens)
+        };
         state = {
           ...state,
           modelName: transcriptUsage?.model ?? state.modelName,
@@ -747,6 +930,21 @@ export class ClaudeAcpRuntime {
         };
         this.sessionStates.set(sessionId, state);
         onEvent({ type: "session_state", state });
+        onEvent({
+          type: "usage",
+          usage: {
+            model: state.modelName ?? null,
+            modelSource: state.modelSource ?? "unreported",
+            inputTokens: turnUsage.inputTokens,
+            outputTokens: turnUsage.outputTokens,
+            cachedReadTokens: turnUsage.cachedReadTokens,
+            cachedWriteTokens: turnUsage.cachedWriteTokens,
+            contextUsed: state.contextUsed,
+            contextSize: state.contextSize,
+            estimatedPromptCharacters: prompt.length,
+            reportedAt: now()
+          }
+        });
       }
       const finalSegment = turn.reply.trim();
       sealReplySegment(turn);
@@ -754,15 +952,76 @@ export class ClaudeAcpRuntime {
         (!turn.sawToolCall ? turn.replySegments.at(-1)?.trim() ?? "" :
           "The run finished, but Claude didn't leave me a clean wrap-up. The workstream has the actual trail.");
       if (!reply) throw new Error("Maker returned no usable reply.");
+      turn.health = {
+        ...turn.health,
+        state: "completed",
+        pendingPermissionSince: null,
+        idleDeadlineAt: null,
+        absoluteDeadlineAt: null,
+        failure: null
+      };
+      onEvent({ type: "health", health: turn.health });
+      this.lastSuccessAt = now();
+      this.lastError = null;
       return reply.slice(0, MAX_REPLY_CHARACTERS);
     } finally {
-      if (timeout) clearTimeout(timeout);
       this.cancelPermissionsForSession(sessionId);
+      if (turn.idleTimer) clearTimeout(turn.idleTimer);
+      if (turn.quietTimer) clearTimeout(turn.quietTimer);
+      if (turn.absoluteTimer) clearTimeout(turn.absoluteTimer);
       this.turns.delete(sessionId);
       this.cancelled.delete(sessionId);
       this.interrupted.delete(sessionId);
       turn.resolveFinished();
     }
+  }
+
+  private renewIdleDeadline(sessionId: string): void {
+    const turn = this.turns.get(sessionId);
+    if (!turn) return;
+    if (turn.idleTimer) clearTimeout(turn.idleTimer);
+    if (turn.quietTimer) clearTimeout(turn.quietTimer);
+    turn.health = {
+      ...turn.health,
+      idleDeadlineAt: isoAfter(TURN_IDLE_TIMEOUT_MS)
+    };
+    turn.idleTimer = setTimeout(() => {
+      turn.health = {
+        ...turn.health,
+        state: "stalled",
+        connection: this.connection ? "connected" : "disconnected",
+        failure: {
+          class: "idle_timeout",
+          message: "No provider or tool activity arrived before the idle deadline.",
+          fate: "The turn was cancelled. Hearth did not replay it.",
+          retrySafe: !turn.mutationObserved
+        }
+      };
+      turn.onEvent({ type: "health", health: turn.health });
+      turn.rejectDeadline?.(new ClaudeAcpTurnDeadlineError("idle_timeout"));
+    }, TURN_IDLE_TIMEOUT_MS);
+    turn.quietTimer = setTimeout(() => {
+      if (turn.health.pendingPermissionSince || turn.health.state !== "working") return;
+      turn.health = { ...turn.health, state: "quiet_connected" };
+      turn.onEvent({ type: "health", health: turn.health });
+    }, TURN_QUIET_AFTER_MS);
+  }
+
+  private noteProviderEvent(sessionId: string, tool = false): void {
+    const turn = this.turns.get(sessionId);
+    if (!turn) return;
+    const timestamp = now();
+    turn.health = {
+      ...turn.health,
+      state: turn.health.pendingPermissionSince ? "waiting_for_user" : "working",
+      lastProviderEventAt: timestamp,
+      lastToolEventAt: tool ? timestamp : turn.health.lastToolEventAt,
+      connection: "connected",
+      process: "running",
+      failure: null
+    };
+    this.renewIdleDeadline(sessionId);
+    turn.onEvent({ type: "health", health: turn.health });
   }
 
   resolvePermission(permissionId: string, optionId: string): boolean {
@@ -773,7 +1032,12 @@ export class ClaudeAcpRuntime {
     clearTimeout(pending.timeout);
     this.permissions.delete(permissionId);
     pending.resolve({ outcome: { outcome: "selected", optionId } });
-    this.turns.get(pending.sessionId)?.onEvent({
+    const turn = this.turns.get(pending.sessionId);
+    if (turn) {
+      turn.health = { ...turn.health, pendingPermissionSince: null, state: "working" };
+      this.noteProviderEvent(pending.sessionId);
+    }
+    turn?.onEvent({
       type: "permission_resolved",
       permissionId,
       optionId
@@ -900,12 +1164,15 @@ export class ClaudeAcpRuntime {
         clientInfo: { name: "Hearth", version: packageJson.version }
       });
     } catch (error) {
+      this.lastError = error instanceof Error ? error.message : "Claude ACP handshake failed.";
       connection.close(error);
       child.kill();
       this.reset();
       throw error;
     }
     this.connection = connection;
+    this.lastHandshakeAt = now();
+    this.lastError = null;
     void connection.closed.then(() => {
       if (this.connection === connection) this.reset();
     });
@@ -933,6 +1200,13 @@ export class ClaudeAcpRuntime {
         options: request.options,
         resolve
       });
+      turn.health = {
+        ...turn.health,
+        state: "waiting_for_user",
+        pendingPermissionSince: now()
+      };
+      this.renewIdleDeadline(request.sessionId);
+      turn.onEvent({ type: "health", health: turn.health });
       turn.onEvent({
         type: "permission",
         permission: {
@@ -955,6 +1229,10 @@ export class ClaudeAcpRuntime {
     const turn = this.turns.get(notification.sessionId);
     if (!turn) return;
     const update = notification.update;
+    this.noteProviderEvent(
+      notification.sessionId,
+      update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update"
+    );
     if (
       update.sessionUpdate === "agent_message_chunk" &&
       update.content.type === "text"
@@ -1026,12 +1304,14 @@ export class ClaudeAcpRuntime {
       turn.sawToolCall = true;
       turn.onEvent({ type: "reply_boundary" });
       const activity = normalizeClaudeToolActivity(update);
+      if (["edit", "delete", "move", "execute"].includes(activity.kind)) turn.mutationObserved = true;
       this.activities.set(activity.id, activity);
       turn.onEvent({ type: "activity", activity });
       return;
     }
     if (update.sessionUpdate === "tool_call_update") {
       const activity = normalizeClaudeToolActivity(update, this.activities.get(update.toolCallId));
+      if (["edit", "delete", "move", "execute"].includes(activity.kind)) turn.mutationObserved = true;
       this.activities.set(activity.id, activity);
       turn.onEvent({ type: "activity", activity });
     }
@@ -1049,6 +1329,15 @@ export class ClaudeAcpRuntime {
     if (!pending) return;
     clearTimeout(pending.timeout);
     this.permissions.delete(permissionId);
+    const turn = this.turns.get(pending.sessionId);
+    if (turn) {
+      turn.health = {
+        ...turn.health,
+        state: "working",
+        pendingPermissionSince: null
+      };
+      this.noteProviderEvent(pending.sessionId);
+    }
     pending.resolve({ outcome: { outcome: "cancelled" } });
   }
 

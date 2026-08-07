@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { Readable, Writable } from "node:stream";
 import {
@@ -48,6 +48,16 @@ export function findCodexAcpAdapter(): string | null {
   return adapterCandidates().find((candidate) => existsSync(candidate)) ?? null;
 }
 
+function installedAdapterVersion(adapterPath: string | null): string | null {
+  if (!adapterPath) return null;
+  try {
+    const manifest = JSON.parse(readFileSync(path.resolve(adapterPath, "..", "..", "package.json"), "utf8")) as { version?: unknown };
+    return typeof manifest.version === "string" ? manifest.version : null;
+  } catch {
+    return null;
+  }
+}
+
 function bundledCodexCandidates(): string[] {
   const architecture = process.arch === "arm64" ? "aarch64" : "x86_64";
   const packageArchitecture = process.arch === "arm64" ? "arm64" : "x64";
@@ -94,9 +104,29 @@ export class CodexAcpRuntime {
   private turns = new Map<string, ActiveTurn>();
   private cancelled = new Set<string>();
   private stderr = "";
+  private lastHandshakeAt: string | null = null;
+  private lastSuccessAt: string | null = null;
+  private lastError: string | null = null;
 
   get available(): boolean {
     return Boolean(this.adapterPath);
+  }
+
+  diagnostics(): import("../shared/contracts").ProviderRuntimeDiagnostics {
+    return {
+      label: "Codex",
+      adapterVersion: installedAdapterVersion(this.adapterPath),
+      adapterFound: Boolean(this.adapterPath),
+      executableFound: Boolean(findBundledCodex() || this.lastHandshakeAt),
+      authReadiness: !this.adapterPath ? "unavailable" : this.lastSuccessAt ? "ready" : "unverified",
+      handshake: this.connection ? "connected" : this.lastHandshakeAt ? "previously_connected" : this.lastError ? "failed" : "not_connected",
+      child: this.child?.exitCode == null && this.child ? "running" : "stopped",
+      activeTurns: this.turns.size,
+      knownSessions: this.sessions.size,
+      lastHandshakeAt: this.lastHandshakeAt,
+      lastSuccessAt: this.lastSuccessAt,
+      lastError: this.lastError?.slice(0, 320) ?? null
+    };
   }
 
   async reason(
@@ -147,7 +177,14 @@ export class CodexAcpRuntime {
       }
       const reply = turn.reply.trim();
       if (!reply) throw new Error("Codex returned no usable reply.");
+      this.lastSuccessAt = new Date().toISOString();
+      this.lastError = null;
       return reply.slice(0, MAX_REPLY_CHARACTERS);
+    } catch (error) {
+      if (!(error instanceof CodexAcpCancelledError)) {
+        this.lastError = error instanceof Error ? error.message : "Codex could not finish this turn.";
+      }
+      throw error;
     } finally {
       if (timeout) clearTimeout(timeout);
       this.turns.delete(sessionId);
@@ -246,12 +283,15 @@ export class CodexAcpRuntime {
         failed
       ]);
     } catch (error) {
+      this.lastError = error instanceof Error ? error.message : "Codex ACP handshake failed.";
       connection.close(error);
       child.kill();
       this.reset();
       throw error;
     }
     this.connection = connection;
+    this.lastHandshakeAt = new Date().toISOString();
+    this.lastError = null;
     void connection.closed.then(() => {
       if (this.connection === connection) this.reset();
     });

@@ -776,6 +776,11 @@ export class AgentProvider {
     return {
       ...this.status,
       models: { ...this.status.models },
+      diagnostics: {
+        checkedAt: now(),
+        claude: this.managedMaker.diagnostics(),
+        codex: this.codex.diagnostics()
+      },
       residents: this.status.residents
         ? Object.fromEntries(
             Object.entries(this.status.residents).map(([agent, resident]) => [
@@ -970,12 +975,16 @@ export class AgentProvider {
           lastUsedAt: now()
         })
       };
-      return null;
+      throw new Error(message);
     }
   }
 
   resolveMakerPermission(permissionId: string, optionId: string): boolean {
     return this.managedMaker.resolvePermission(permissionId, optionId);
+  }
+
+  resetManagedMaker(cwd: string): void {
+    this.managedMaker.resetSession(cwd);
   }
 
   async configureManagedMaker(
