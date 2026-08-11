@@ -2167,11 +2167,19 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(running.page.getByLabel("Instruction for Claude Code")).toHaveValue(
         "Review src/app.ts and keep the change narrow."
       );
-      await running.page.evaluate(() => window.hearth.startTerminal("claude", "user"));
+      const terminalKind = await running.page.evaluate(async () =>
+        (await window.hearth.bootstrap()).terminal.capabilities.claudeAvailable
+          ? "claude"
+          : "powershell"
+      ) as "claude" | "powershell";
+      await running.page.evaluate(
+        (kind) => window.hearth.startTerminal(kind, "user"),
+        terminalKind
+      );
       await expect
         .poll(async () => {
           const snapshot = await running.page.evaluate(() => window.hearth.attachTerminal());
-          return snapshot.session?.kind === "claude" &&
+          return snapshot.session?.kind === terminalKind &&
             ["starting", "running", "waiting"].includes(
               snapshot.session.lifecycle
             );
