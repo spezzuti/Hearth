@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.55.0 implementation. It is an implementation map, not a
+This document describes the current 0.56.0 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model

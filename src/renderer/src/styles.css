@@ -3033,7 +3033,7 @@ button.room-link:not(.is-disabled):hover {
 
 .companion-foot--left {
   left: 17px;
-  transform: rotate(-2deg);
+  transform: none;
 }
 
 .companion-foot--right {
@@ -13078,6 +13078,309 @@ button.room-link:not(.is-disabled):hover {
   border-left: 3px solid rgba(183, 100, 66, 0.55);
 }
 
+/* Phase 4.5: shared and quiet rooms */
+.app-shell[data-room="living"] .living-room {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 79% -10%, rgba(255, 224, 174, 0.43), transparent 36%),
+    radial-gradient(circle at 7% 105%, rgba(73, 116, 103, 0.19), transparent 34%),
+    repeating-linear-gradient(0deg, rgba(111, 78, 53, 0.014) 0 1px, transparent 1px 6px),
+    linear-gradient(148deg, #eee1d2 0%, #f5ece1 48%, #e7ddd0 100%);
+}
+
+.app-shell[data-room="living"] .living-room::after {
+  position: absolute;
+  right: 11%;
+  bottom: 0;
+  z-index: 0;
+  width: min(720px, 64vw);
+  height: 96px;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(ellipse, rgba(169, 102, 68, 0.12), rgba(104, 130, 115, 0.07) 52%, transparent 72%);
+  border: 1px solid rgba(121, 83, 59, 0.08);
+  border-radius: 50% 50% 0 0;
+  transform: rotate(-2deg);
+}
+
+.app-shell[data-room="living"] .living-room > * {
+  position: relative;
+  z-index: 1;
+}
+
+.app-shell[data-room="living"] .living-heading {
+  padding: 0 2px;
+}
+
+.app-shell[data-room="living"] .living-heading h1 {
+  color: #293f3d;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.app-shell[data-room="living"] .living-thread-tools input,
+.app-shell[data-room="living"] .living-thread-strip > button {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 62%),
+    #eee4d8;
+  border-color: rgba(112, 80, 57, 0.17);
+}
+
+.app-shell[data-room="living"] .living-thread-strip > button.is-active {
+  background: linear-gradient(145deg, #fffdf8, #f5eee5);
+  border-color: rgba(172, 106, 70, 0.42);
+  box-shadow:
+    0 1px rgba(255, 255, 255, 0.8) inset,
+    0 7px 18px rgba(66, 47, 34, 0.09);
+}
+
+.app-shell[data-room="living"] .living-conversation,
+.app-shell[data-room="living"] .living-household {
+  border-color: rgba(110, 80, 58, 0.21);
+  box-shadow: var(--shadow-raised);
+}
+
+.app-shell[data-room="living"] .living-conversation {
+  background:
+    radial-gradient(circle at 16% 0, rgba(255, 255, 255, 0.58), transparent 28%),
+    #fbf8f2;
+}
+
+.app-shell[data-room="living"] .living-conversation > header {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), transparent 68%),
+    #e9ded1;
+  border-bottom-color: rgba(109, 78, 56, 0.17);
+}
+
+.app-shell[data-room="living"] .living-messages {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(76, 105, 96, 0.035) 0.7px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.app-shell[data-room="living"] .living-message > div {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), transparent 58%),
+    #ece3d8;
+  border-color: rgba(104, 76, 56, 0.09);
+  box-shadow: 0 5px 14px rgba(64, 46, 34, 0.045);
+}
+
+.app-shell[data-room="living"] .living-message.is-user > div {
+  background: linear-gradient(145deg, #e6efea, #dce8e1);
+  border-color: rgba(72, 107, 92, 0.14);
+}
+
+.app-shell[data-room="living"] .living-message.is-system > div {
+  background: linear-gradient(145deg, #f2e7db, #eadbcd);
+}
+
+.app-shell[data-room="living"] .living-composer,
+.app-shell[data-room="living"] .living-outcomes {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent),
+    #e5dacd;
+  border-top-color: rgba(106, 76, 54, 0.18);
+}
+
+.app-shell[data-room="living"] .living-composer textarea {
+  background: linear-gradient(180deg, #fffdf9, #faf6ef);
+  border-color: rgba(116, 84, 61, 0.27);
+  box-shadow:
+    inset 0 1px 3px rgba(65, 47, 34, 0.045),
+    0 4px 12px rgba(65, 47, 34, 0.035);
+}
+
+.app-shell[data-room="living"] .living-household {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.48), transparent 42%),
+    #f3ece3;
+}
+
+.app-shell[data-room="living"] .living-context-card {
+  background:
+    repeating-linear-gradient(0deg, rgba(99, 73, 54, 0.016) 0 1px, transparent 1px 5px),
+    #e8ddd0;
+  border-color: rgba(111, 79, 57, 0.18);
+  box-shadow: var(--shadow-settled);
+}
+
+.app-shell[data-room="living"] .living-mode-picker > button,
+.app-shell[data-room="living"] .living-resident {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), transparent 58%),
+    #eee6dc;
+  border-color: rgba(110, 81, 60, 0.07);
+}
+
+.app-shell[data-room="living"] .living-mode-picker > button.is-active,
+.app-shell[data-room="living"] .living-resident.is-selected {
+  background: linear-gradient(145deg, #e7f0eb, #dce8e2);
+  border-color: rgba(75, 113, 96, 0.24);
+  box-shadow:
+    inset 3px 0 #648579,
+    0 5px 13px rgba(57, 79, 69, 0.06);
+}
+
+.app-shell[data-room="living"] .living-resident > .avatar {
+  box-shadow:
+    0 8px 18px rgba(57, 41, 31, 0.16),
+    0 0 0 1px rgba(114, 79, 57, 0.16);
+}
+
+.app-shell[data-room="archive"] .archive-room {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 88% -8%, rgba(223, 181, 119, 0.27), transparent 30%),
+    linear-gradient(90deg, rgba(81, 105, 94, 0.045), transparent 17%, transparent 82%, rgba(104, 72, 53, 0.035)),
+    repeating-linear-gradient(0deg, rgba(96, 70, 51, 0.017) 0 1px, transparent 1px 6px),
+    linear-gradient(150deg, #e8ded1, #eee6dc 53%, #e1d7ca);
+}
+
+.app-shell[data-room="archive"] .archive-room::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  width: 220px;
+  height: 58%;
+  pointer-events: none;
+  content: "";
+  opacity: 0.2;
+  background:
+    repeating-linear-gradient(90deg, rgba(91, 62, 44, 0.15) 0 1px, transparent 1px 42px),
+    linear-gradient(180deg, transparent, rgba(84, 60, 44, 0.08));
+  mask-image: linear-gradient(135deg, transparent 8%, #000 70%);
+}
+
+.app-shell[data-room="archive"] .archive-heading {
+  padding: 0 2px 12px;
+  border-bottom: 1px solid rgba(105, 76, 55, 0.13);
+}
+
+.app-shell[data-room="archive"] .archive-heading h1 {
+  color: #293e3d;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.app-shell[data-room="archive"] .archive-cabinet {
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.16),
+    0 14px 27px rgba(67, 46, 35, 0.2),
+    0 0 0 1px rgba(105, 70, 50, 0.1);
+}
+
+.app-shell[data-room="archive"] .archive-toolbar {
+  padding-bottom: 2px;
+}
+
+.app-shell[data-room="archive"] .archive-search,
+.app-shell[data-room="archive"] .archive-filters {
+  border-color: rgba(109, 80, 59, 0.2);
+  box-shadow: var(--shadow-settled);
+}
+
+.app-shell[data-room="archive"] .archive-filters {
+  background:
+    linear-gradient(180deg, rgba(107, 76, 55, 0.12), rgba(107, 76, 55, 0.07)),
+    #e2d7ca;
+}
+
+.app-shell[data-room="archive"] .archive-filters button.is-active {
+  background: linear-gradient(180deg, #fffdf8, #f6eee5);
+  box-shadow:
+    0 1px rgba(255, 255, 255, 0.82) inset,
+    0 3px 8px rgba(62, 44, 32, 0.11);
+}
+
+.app-shell[data-room="archive"] .archive-list,
+.app-shell[data-room="archive"] .archive-detail {
+  border-color: rgba(107, 79, 58, 0.2);
+  box-shadow: var(--shadow-raised);
+}
+
+.app-shell[data-room="archive"] .archive-list {
+  background:
+    repeating-linear-gradient(0deg, rgba(93, 67, 48, 0.013) 0 1px, transparent 1px 5px),
+    #f5eee5;
+}
+
+.app-shell[data-room="archive"] .archive-list-heading {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), transparent 62%),
+    rgba(235, 226, 215, 0.97);
+  border-bottom-color: rgba(105, 76, 55, 0.15);
+}
+
+.app-shell[data-room="archive"] .archive-record {
+  position: relative;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.62), transparent 65%),
+    #fbf8f2;
+  border: 1px solid rgba(109, 80, 59, 0.055);
+  box-shadow: 0 5px 14px rgba(62, 44, 32, 0.035);
+}
+
+.app-shell[data-room="archive"] .archive-record::after {
+  position: absolute;
+  top: 11px;
+  right: -1px;
+  bottom: 11px;
+  width: 3px;
+  pointer-events: none;
+  content: "";
+  background: rgba(175, 114, 76, 0.2);
+  border-radius: 3px 0 0 3px;
+}
+
+.app-shell[data-room="archive"] .archive-record.is-selected {
+  background: linear-gradient(90deg, #e7efea, #f9f6ef 78%);
+  border-color: rgba(77, 112, 97, 0.24);
+  box-shadow:
+    inset 3px 0 #5d7f73,
+    0 7px 18px rgba(55, 77, 68, 0.07);
+}
+
+.app-shell[data-room="archive"] .archive-record.is-selected::after {
+  background: #bd704d;
+}
+
+.app-shell[data-room="archive"] .archive-detail {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.5), transparent 54%),
+    repeating-linear-gradient(0deg, rgba(98, 72, 52, 0.014) 0 1px, transparent 1px 5px),
+    #f7f1e9;
+}
+
+.app-shell[data-room="archive"] .archive-detail-heading {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 58%),
+    #ece2d6;
+  border-bottom-color: rgba(106, 77, 56, 0.16);
+}
+
+.app-shell[data-room="archive"] .archive-context {
+  background: linear-gradient(145deg, #e7efeb, #dfe9e4);
+  border: 1px solid rgba(75, 109, 94, 0.1);
+  box-shadow: inset 3px 0 rgba(80, 119, 102, 0.48);
+}
+
+.app-shell[data-room="archive"] .archive-detail-actions {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent),
+    #e9dfd3;
+  border-top-color: rgba(106, 77, 56, 0.17);
+}
+
+.app-shell[data-room="archive"] .archive-remove-confirm {
+  padding: 10px;
+  background: linear-gradient(145deg, #f3e1d8, #ecd5ca);
+  border: 1px solid rgba(153, 76, 52, 0.22);
+  border-radius: 10px;
+  box-shadow: inset 3px 0 #a25840;
+}
+
 /* Phase 4.5: connected working rooms */
 .app-shell[data-room="study"] .study-room {
   isolation: isolate;
@@ -13704,6 +14007,15 @@ button.room-link:not(.is-disabled):hover {
     gap: 8px;
     padding-top: 11px;
     padding-bottom: 11px;
+  }
+
+  .app-shell[data-room="living"] .living-heading {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .app-shell[data-room="living"] .living-room::after {
+    display: none;
   }
 
   .living-heading h1 {

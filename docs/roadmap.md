@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.55.0 implementation described in
+This roadmap starts from the real Hearth 0.56.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -158,9 +158,9 @@ prompts or permission policy.
 
 ## Phase 4.5 — furnish the house
 
-The foundation and first two room passes shipped in 0.53.0 through 0.55.0. They establish a coherent
-visual language and furnish Home, Study, Workshop, Library, and Studio without moving, renaming, or
-weakening any workflow.
+The foundation and room passes shipped in 0.53.0 through 0.56.0. They establish a coherent visual
+language and furnish Home, Study, Workshop, Library, Studio, Living Room, and Archive without
+moving, renaming, or weakening any workflow.
 
 ### Delivered foundation and Home
 
@@ -184,13 +184,18 @@ weakening any workflow.
   cards, and a larger, clearer Librarian presence.
 - Furnished Studio as a brighter creative loft/worktable with ruled capture paper, drafting-grid
   structure, status color, and restrained pinned-card details across ideas and notes.
+- Furnished Living Room as the warm shared center of the house, with equal resident presence,
+  layered conversation materials, and clearer active discussion and household states.
+- Furnished Archive as a quiet retention room with cabinetry, paper records, stronger provenance,
+  and a clearly bounded permanent-removal confirmation.
+- Proved both rooms remain contained at compact desktop size after catching decoration-induced
+  overflow during the pass.
 
 ### Remaining furnishing passes
 
-1. Furnish Living Room and Archive around shared discussion and quiet retention respectively.
-2. Complete the Companion's final expressive visual identity, then tune resident expression and
+1. Complete the Companion's final expressive visual identity, then tune resident expression and
    presence across their established surfaces.
-3. Refresh public screenshots only after every room passes full-size, 1080×720, 1040×700, scaling,
+2. Refresh public screenshots only after every room passes full-size, 1080×720, 1040×700, scaling,
    wrapping, focus, copy/paste, and reduced-motion review.
 
 **Exit:** Hearth feels inhabited and visually coherent during daily use, while every room remains a

@@ -1,6 +1,6 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.55.0. It records the Library and Studio
+This is the current engineering snapshot for Hearth 0.56.0. It records the Living Room and Archive
 furnishing pass completed and verified on Windows on 2026-08-11.
 
 ## What is already working
@@ -43,7 +43,8 @@ and explicit milestone records resume with 0.48.0:
 | 0.52.0 | Supervised House Practices with evidence, provenance, explicit effects, scoped approval, and frozen decisions. |
 | 0.53.0 | Shared visual-language foundation and a fully furnished, compact-safe Home surface. |
 | 0.54.0 | Connected Study and Workshop identities with compact-safe session controls. |
-| 0.55.0 current | Furnished Library and Studio identities with compact-safe resident and creative surfaces. |
+| 0.55.0 | Furnished Library and Studio identities with compact-safe resident and creative surfaces. |
+| 0.56.0 current | Furnished Living Room and Archive identities with compact-safe conversation and retention surfaces. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
@@ -58,8 +59,8 @@ resume explicit milestone records or maintain a changelog so the public history 
   coupling decoration to navigation behavior.
 - At 1080×720 Home becomes a readable single column. The Electron suite asserts that both the
   document and Home surface remain horizontally contained.
-- The final Companion form and the remaining room identities are intentionally separate furnishing
-  passes; 0.54.0 does not pretend those assets are finished.
+- The room identities are now furnished through 0.56.0. Companion's final expressive form remains
+  a separate pass rather than being implied complete by the room work.
 - Study now balances paper, linen, warm editorial light, and distinct brief, evidence, conversation,
   Critic, and project-browser layers without changing review behavior.
 - Workshop now uses a dark creative-workroom surround with copper and green atmosphere while the
@@ -73,6 +74,13 @@ resume explicit milestone records or maintain a changelog so the public history 
 - Studio now carries a brighter loft/worktable identity across both Ideas and Notes. Drafting-grid
   structure, ruled capture paper, status-colored counters, card shadows, and restrained tape details
   add creative energy without changing capture, pursuit, dismissal, discussion, or promotion.
+- Living Room now uses the house's warmest shared palette, equal resident presence, layered
+  conversation materials, and a calmer household rail without changing private histories,
+  roundtables, pressure tests, or handoffs.
+- Archive now uses quiet cabinetry, paper records, clearer selection and provenance layers, and a
+  bounded destructive confirmation surface without changing recovery or permanent-removal rules.
+- Living Room and Archive both remain contained at 1080×720; ambient decoration is explicitly kept
+  inside room bounds so compact layouts do not gain hidden horizontal or vertical scrolling.
 
 ## Phase 4 outcome
 
