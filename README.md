@@ -1,5 +1,7 @@
 # Hearth
 
+[![Windows verification](https://github.com/spezzuti/Hearth/actions/workflows/windows-ci.yml/badge.svg)](https://github.com/spezzuti/Hearth/actions/workflows/windows-ci.yml)
+
 **A Windows desktop home for doing real work with Claude Code—without losing the terminal experience.**
 
 Hearth is a local, Windows-first desktop app for people who direct AI coding work more often than

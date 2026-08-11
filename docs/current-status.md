@@ -123,8 +123,9 @@ resume explicit milestone records or maintain a changelog so the public history 
 
 `.github/workflows/windows-ci.yml` now runs locked installation, production audit, type checking,
 unit tests, production build, and the deterministic 13-scenario Electron suite on Windows. Failed
-Electron traces are retained for seven days. The workflow is committed locally; its first public
-green run remains external confirmation after push, so no status badge is claimed yet.
+Electron traces are retained for seven days. The complete workflow passed publicly on 2026-08-11
+against commit `f4a7387`, including clean-runner provider fallback, canonical Windows paths, compact
+layout behavior, ConPTY persistence, and full-exit recovery. The README now carries its status badge.
 
 ### Provider identity truth
 

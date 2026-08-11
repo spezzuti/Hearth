@@ -23,10 +23,10 @@ changing Hearth into a team-chat network, autonomous agent swarm, browser, or ge
 | Hermes/Buzz conversational voice | Paired mobile Companion and residents with established conversational identities | Add push-to-talk and barge-in later, after provider trust and context are solid. |
 | Hermes A2A and Buzz bring-your-own harness | Separate Claude and Codex ACP routes | Keep an adapter seam in mind, but defer general agent interoperability until a real workflow requires it. |
 
-## Phase 0 — trust baseline delivered locally in 0.48.0
+## Phase 0 — trust baseline delivered in 0.48.0 and publicly proven in 0.50.0
 
-The implementation and local release evidence are complete. The Windows workflow must still receive
-its first green public run after these commits are pushed before a status badge is added.
+The implementation, local release evidence, and first complete public Windows run are now green. The
+repository status badge reports the same locked-install, audit, type, unit, build, and Electron gate.
 
 ### Dependency and packaging repair
 
@@ -42,9 +42,9 @@ its first green public run after these commits are pushed before a status badge 
 
 1. A Windows GitHub Actions gate now covers locked install, production audit, typecheck, unit tests,
    build, and the deterministic Electron suite.
-2. Prove whether the complete Electron suite is stable on the hosted Windows runner. If not, publish
-   a smaller deterministic smoke there and keep the full suite as a documented release gate.
-3. Add a status badge only after the workflow is consistently meaningful.
+2. The complete 13-scenario Electron suite now passes on the hosted Windows runner without requiring
+   Claude Code to be globally installed; provider-dependent checks use truthful local fallback.
+3. The README status badge now reflects the complete meaningful workflow.
 
 ### Provider truth
 
@@ -53,9 +53,8 @@ its first green public run after these commits are pushed before a status badge 
 2. Configured Claude aliases and unreported model identity are now explicit.
 3. Provider, fallback, local, degraded, and unavailable states remain separate.
 
-**Local exit met:** zero known dependency audit findings, clean packaged shutdown and interruption,
-and no UI claiming more provider certainty than Hearth possesses. **External confirmation pending:**
-the first pushed Windows workflow run.
+**Exit met:** zero known dependency audit findings, clean packaged shutdown and interruption, no UI
+claiming more provider certainty than Hearth possesses, and a complete green public Windows run.
 
 ## Phase 1 — Workshop turn health and Provider Doctor field-proven in 0.49.1
 
