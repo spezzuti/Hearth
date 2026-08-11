@@ -11669,7 +11669,7 @@ button.room-link:not(.is-disabled):hover {
 }
 
 .studio-dialog-backdrop {
-  position: fixed;
+  position: absolute;
   z-index: 120;
   inset: 0;
   display: grid;
@@ -11683,8 +11683,8 @@ button.room-link:not(.is-disabled):hover {
 .studio-dialog {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  width: min(820px, calc(100vw - 48px));
-  height: min(650px, calc(100vh - 48px));
+  width: min(820px, calc(100% - 48px));
+  height: min(650px, calc(100% - 48px));
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -12746,8 +12746,8 @@ button.room-link:not(.is-disabled):hover {
   }
 
   .studio-dialog {
-    width: calc(100vw - 20px);
-    height: calc(100vh - 20px);
+    width: calc(100% - 20px);
+    height: calc(100% - 20px);
   }
 
   .studio-conversation-messages article {

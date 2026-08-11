@@ -1408,6 +1408,17 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(
         running.page.getByText(/I think this has legs/i)
       ).toBeVisible();
+      const studioLayerBounds = await running.page.evaluate(() => {
+        const sidebar = document.querySelector<HTMLElement>(".sidebar");
+        const backdrop = document.querySelector<HTMLElement>(".studio-dialog-backdrop");
+        return {
+          sidebarRight: sidebar?.getBoundingClientRect().right ?? 0,
+          backdropLeft: backdrop?.getBoundingClientRect().left ?? 0
+        };
+      });
+      expect(studioLayerBounds.backdropLeft).toBeGreaterThanOrEqual(
+        studioLayerBounds.sidebarRight - 1
+      );
       await running.page.screenshot({
         path: path.join(screenshotDirectory, "studio-development.png")
       });
@@ -1418,7 +1429,19 @@ test.describe.serial("continuity vertical slice", () => {
       await running.page.screenshot({
         path: path.join(screenshotDirectory, "studio-new-project.png")
       });
-      await running.page.getByRole("button", { name: "Existing project" }).click();
+      const existingProjectButton = running.page.getByRole("button", {
+        name: "Existing project"
+      });
+      const existingProjectHitTarget = await existingProjectButton.evaluate((button) => {
+        const bounds = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2
+        );
+        return hit === button || hit?.closest("button") === button;
+      });
+      expect(existingProjectHitTarget).toBe(true);
+      await existingProjectButton.click();
       const projectSelect = running.page.getByLabel("Connect to");
       const reviewOption = projectSelect.locator("option").filter({
         hasText: "Review Project"
