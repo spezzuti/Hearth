@@ -12755,6 +12755,276 @@ button.room-link:not(.is-disabled):hover {
   }
 }
 
+/* Phase 4.5: connected working rooms */
+.app-shell[data-room="study"] .study-room {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 88% -7%, rgba(255, 248, 220, 0.82), transparent 32%),
+    linear-gradient(90deg, rgba(104, 73, 49, 0.026), transparent 16%, transparent 86%, rgba(104, 73, 49, 0.035)),
+    repeating-linear-gradient(0deg, rgba(102, 75, 52, 0.018) 0 1px, transparent 1px 6px),
+    linear-gradient(155deg, #f2eadf, #ebe2d6 62%, #e5dbce);
+}
+
+.app-shell[data-room="study"] .study-room::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  height: 95px;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(180deg, transparent, rgba(91, 61, 41, 0.035)),
+    repeating-linear-gradient(90deg, rgba(91, 61, 41, 0.04) 0 1px, transparent 1px 42px);
+  mask-image: linear-gradient(to bottom, transparent, #000);
+}
+
+.app-shell[data-room="study"] .study-heading {
+  padding: 0 2px 15px;
+  margin-bottom: 13px;
+  border-bottom: 1px solid rgba(111, 86, 62, 0.14);
+}
+
+.app-shell[data-room="study"] .study-heading h1 {
+  color: #293e3d;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.app-shell[data-room="study"] .study-presence {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(238, 231, 220, 0.72)),
+    var(--linen);
+  border-color: rgba(113, 89, 66, 0.18);
+  box-shadow: var(--shadow-settled);
+}
+
+.app-shell[data-room="study"] .study-view-tabs {
+  padding: 4px;
+  background:
+    linear-gradient(180deg, rgba(119, 83, 59, 0.12), rgba(107, 78, 57, 0.08)),
+    #e6ddd1;
+  border-color: rgba(102, 73, 52, 0.17);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.52);
+}
+
+.app-shell[data-room="study"] .study-view-tabs button.is-active {
+  color: #573c30;
+  background: linear-gradient(180deg, #fffdf8, #f7f1e8);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.82) inset,
+    0 3px 8px rgba(63, 45, 33, 0.12);
+}
+
+.app-shell[data-room="study"] .study-brief,
+.app-shell[data-room="study"] .study-evidence,
+.app-shell[data-room="study"] .critic-profile,
+.app-shell[data-room="study"] .critic-evidence {
+  position: relative;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.52), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(104, 76, 52, 0.016) 0 1px, transparent 1px 5px),
+    var(--linen);
+  border-color: rgba(115, 91, 68, 0.18);
+  box-shadow: var(--shadow-settled);
+}
+
+.app-shell[data-room="study"] .study-brief::before,
+.app-shell[data-room="study"] .critic-profile::before {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 0;
+  width: 3px;
+  content: "";
+  background: linear-gradient(180deg, #bd704d, #8b4c36);
+  border-radius: 0 3px 3px 0;
+}
+
+.app-shell[data-room="study"] .conversation-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), transparent 29%),
+    #fbf8f3;
+  border-color: rgba(112, 88, 65, 0.2);
+  box-shadow: var(--shadow-raised);
+}
+
+.app-shell[data-room="study"] .conversation-heading {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.5), transparent),
+    #f4ede4;
+  border-bottom-color: rgba(112, 88, 65, 0.15);
+}
+
+.app-shell[data-room="study"] .agent-context-card {
+  background:
+    repeating-linear-gradient(0deg, rgba(94, 72, 53, 0.018) 0 1px, transparent 1px 5px),
+    #ebe3d8;
+}
+
+.app-shell[data-room="study"] .message:not(.message--user) {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), transparent 58%),
+    #eee4d8;
+  box-shadow: 0 4px 12px rgba(67, 50, 36, 0.045);
+}
+
+.app-shell[data-room="study"] .message--user {
+  background: linear-gradient(145deg, #e7efec, #dfe9e5);
+  border-color: rgba(75, 108, 93, 0.15);
+}
+
+.app-shell[data-room="study"] .project-catalog,
+.app-shell[data-room="study"] .project-browser,
+.app-shell[data-room="study"] .project-inspector {
+  border-color: rgba(111, 85, 62, 0.18);
+  box-shadow: var(--shadow-settled);
+}
+
+.app-shell[data-room="study"] .project-catalog,
+.app-shell[data-room="study"] .project-inspector {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 58%),
+    #f2ebe1;
+}
+
+.app-shell[data-room="study"] .project-browser {
+  background:
+    repeating-linear-gradient(0deg, rgba(94, 72, 53, 0.014) 0 1px, transparent 1px 5px),
+    #fdfaf5;
+}
+
+.app-shell[data-room="workshop"] .workshop-room {
+  background:
+    radial-gradient(ellipse at 78% -12%, rgba(191, 107, 67, 0.25), transparent 34%),
+    radial-gradient(circle at 16% 108%, rgba(65, 104, 96, 0.24), transparent 35%),
+    linear-gradient(145deg, #313b3a 0%, #242e2e 48%, #202727 100%);
+}
+
+.app-shell[data-room="workshop"] .workshop-room::before {
+  opacity: 0.09;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(237, 224, 208, 0.38) 0.6px, transparent 0);
+  background-size: 18px 18px;
+}
+
+.app-shell[data-room="workshop"] .workshop-room::after {
+  right: 0;
+  bottom: -18px;
+  width: 38%;
+  height: 150px;
+  opacity: 0.2;
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(191, 139, 92, 0.48) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 49%, rgba(191, 139, 92, 0.38) 50%, transparent 51%);
+  background-size: 34px 34px;
+}
+
+.app-shell[data-room="workshop"] .workshop-heading h1 {
+  color: #f3eadf;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.app-shell[data-room="workshop"] .workshop-heading .eyebrow {
+  color: #e3a77d;
+}
+
+.app-shell[data-room="workshop"] .workbench-switch {
+  background: rgba(17, 23, 23, 0.54);
+  border-color: rgba(232, 215, 196, 0.14);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.app-shell[data-room="workshop"] .workbench-switch button {
+  color: #b7b2aa;
+}
+
+.app-shell[data-room="workshop"] .workbench-switch button.is-active {
+  color: #372f2a;
+  background: linear-gradient(180deg, #fffaf2, #eee3d5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.app-shell[data-room="workshop"] .runtime-pill {
+  color: #ddd7ce;
+  background: rgba(19, 26, 25, 0.56);
+  border-color: rgba(231, 215, 198, 0.14);
+}
+
+.app-shell[data-room="workshop"] .runtime-pill small {
+  color: #aaa8a1;
+}
+
+.app-shell[data-room="workshop"] .runtime-pill--live {
+  background: linear-gradient(145deg, rgba(42, 69, 57, 0.96), rgba(32, 55, 47, 0.95));
+  border-color: rgba(113, 172, 126, 0.43);
+  box-shadow: 0 8px 20px rgba(10, 18, 15, 0.22);
+}
+
+.app-shell[data-room="workshop"] .runtime-pill--live strong {
+  color: #d9ecd9;
+}
+
+.app-shell[data-room="workshop"] .focus-button,
+.app-shell[data-room="workshop"] .household-gather {
+  color: #ddd4c9;
+  background: rgba(24, 31, 30, 0.68);
+  border-color: rgba(228, 208, 188, 0.17);
+}
+
+.app-shell[data-room="workshop"] .focus-button:hover,
+.app-shell[data-room="workshop"] .household-gather:hover {
+  color: #ffe8d8;
+  background: rgba(51, 57, 53, 0.82);
+  border-color: rgba(225, 159, 116, 0.42);
+}
+
+.app-shell[data-room="workshop"] .session-shelf {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.42), transparent 56%),
+    #eee5da;
+  border-color: rgba(220, 196, 170, 0.2);
+  box-shadow: 0 18px 44px rgba(5, 10, 10, 0.2);
+}
+
+.app-shell[data-room="workshop"] .managed-workbench,
+.app-shell[data-room="workshop"] .terminal-workbench {
+  border-color: rgba(210, 156, 113, 0.34);
+  box-shadow:
+    0 24px 64px rgba(4, 9, 9, 0.34),
+    0 0 0 1px rgba(0, 0, 0, 0.22),
+    inset 0 1px rgba(255, 255, 255, 0.045);
+}
+
+.app-shell[data-room="workshop"] .managed-workbench {
+  background:
+    radial-gradient(circle at 82% 0%, rgba(94, 151, 135, 0.15), transparent 32%),
+    linear-gradient(150deg, #202729, #171b1d 63%, #211a1d);
+  background-color: var(--claude-surface);
+}
+
+.app-shell[data-room="workshop"] .workshop-maker {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.46), transparent 55%),
+    #f4ede3;
+  border-color: rgba(218, 183, 151, 0.25);
+  box-shadow: 0 20px 52px rgba(5, 10, 10, 0.24);
+}
+
+.app-shell[data-room="workshop"] .workshop-maker--managed .maker-rail-heading {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(180, 103, 66, 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.26), transparent 62%),
+    #eadfd2;
+  border-bottom: 1px solid rgba(111, 82, 60, 0.15);
+}
+
+.app-shell[data-room="workshop"] .workshop-maker--managed .maker-rail-heading .avatar {
+  box-shadow:
+    0 13px 28px rgba(43, 31, 25, 0.2),
+    0 0 0 1px rgba(126, 86, 61, 0.18);
+}
+
 @media (max-width: 1320px) {
   .project-surface {
     grid-template-columns: 215px minmax(0, 1fr);
@@ -12991,7 +13261,26 @@ button.room-link:not(.is-disabled):hover {
 
   .claude-session-bar {
     height: 42px;
+    gap: 6px;
     padding-inline: 10px;
+  }
+
+  .claude-context-meter {
+    min-width: 168px;
+  }
+
+  .claude-session-meta {
+    gap: 3px;
+  }
+
+  .claude-session-bar .managed-session-chip {
+    padding: 3px 5px;
+    font-size: 7px;
+  }
+
+  .provider-doctor > summary {
+    padding-inline: 5px;
+    font-size: 7.5px;
   }
 
   .claude-session-bar .managed-session-chip.is-token-count small,

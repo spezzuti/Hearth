@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.53.0. It records the first Phase 4.5 furnishing
-pass completed and verified on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.54.0. It records the connected Study and
+Workshop furnishing pass completed and verified on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -41,7 +41,8 @@ and explicit milestone records resume with 0.48.0:
 | 0.50.0 | Persisted per-turn context manifests, provider/local accounting separation, and threshold-aware continuity choices. |
 | 0.51.0 | Typed canonical references, bounded public metadata, calm cross-room source cards, and Librarian citation rules. |
 | 0.52.0 | Supervised House Practices with evidence, provenance, explicit effects, scoped approval, and frozen decisions. |
-| 0.53.0 current | Shared visual-language foundation and a fully furnished, compact-safe Home surface. |
+| 0.53.0 | Shared visual-language foundation and a fully furnished, compact-safe Home surface. |
+| 0.54.0 current | Connected Study and Workshop identities with compact-safe session controls. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
@@ -57,7 +58,14 @@ resume explicit milestone records or maintain a changelog so the public history 
 - At 1080×720 Home becomes a readable single column. The Electron suite asserts that both the
   document and Home surface remain horizontally contained.
 - The final Companion form and the remaining room identities are intentionally separate furnishing
-  passes; 0.53.0 does not pretend those assets are finished.
+  passes; 0.54.0 does not pretend those assets are finished.
+- Study now balances paper, linen, warm editorial light, and distinct brief, evidence, conversation,
+  Critic, and project-browser layers without changing review behavior.
+- Workshop now uses a dark creative-workroom surround with copper and green atmosphere while the
+  Claude workstream's terminal colors, typography, density, streaming actions, diffs, and composer
+  remain unchanged.
+- Compact Workshop explicitly proves the Context meter and right-side session controls do not
+  overlap in addition to the existing document, workbench, Maker, and composer containment checks.
 
 ## Phase 4 outcome
 

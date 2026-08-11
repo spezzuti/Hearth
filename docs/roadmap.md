@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.53.0 implementation described in
+This roadmap starts from the real Hearth 0.54.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -158,8 +158,9 @@ prompts or permission policy.
 
 ## Phase 4.5 — furnish the house
 
-The first foundation pass shipped in 0.53.0. It establishes a coherent visual language and furnishes
-Home without moving, renaming, or weakening any workflow.
+The foundation and first connected working-room pass shipped in 0.53.0 and 0.54.0. They establish a
+coherent visual language and furnish Home, Study, and Workshop without moving, renaming, or weakening
+any workflow.
 
 ### Delivered foundation and Home
 
@@ -173,17 +174,21 @@ Home without moving, renaming, or weakening any workflow.
   resident identity and controls into narrow cards.
 - Added an explicit room identity hook to the shell so later rooms can vary atmosphere while staying
   visibly inside the same house.
+- Furnished Study as a warm editorial room with paper-led briefs, clearer conversation layers,
+  desk accents, and a coherent project-browser surface.
+- Furnished Workshop as a smoky charcoal and green creative workroom around the unchanged Claude
+  Code core, with warmer Maker contrast and stronger workbench depth.
+- Repaired and permanently checks compact Workshop session-control separation so Context, Planning,
+  effort, and Provider Doctor never overlap.
 
 ### Remaining furnishing passes
 
-1. Furnish Study and Workshop as related working rooms: stronger focus, restrained technical
-   materials, and no loss of terminal density or Claude Code readability.
-2. Furnish Library and Studio with distinct shelf/paper and creative-work surfaces while preserving
+1. Furnish Library and Studio with distinct shelf/paper and creative-work surfaces while preserving
    their current information architecture.
-3. Furnish Living Room and Archive around shared discussion and quiet retention respectively.
-4. Complete the Companion's final expressive visual identity, then tune resident expression and
+2. Furnish Living Room and Archive around shared discussion and quiet retention respectively.
+3. Complete the Companion's final expressive visual identity, then tune resident expression and
    presence across their established surfaces.
-5. Refresh public screenshots only after every room passes full-size, 1080×720, 1040×700, scaling,
+4. Refresh public screenshots only after every room passes full-size, 1080×720, 1040×700, scaling,
    wrapping, focus, copy/paste, and reduced-motion review.
 
 **Exit:** Hearth feels inhabited and visually coherent during daily use, while every room remains a

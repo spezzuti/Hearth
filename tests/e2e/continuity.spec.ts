@@ -1898,12 +1898,21 @@ test.describe.serial("continuity vertical slice", () => {
         const workbench = document.querySelector<HTMLElement>(".claude-workbench");
         const maker = document.querySelector<HTMLElement>(".workshop-maker");
         const composer = document.querySelector<HTMLElement>(".claude-composer");
+        const context = document.querySelector<HTMLElement>(".claude-context-meter");
+        const sessionMeta = document.querySelector<HTMLElement>(".claude-session-meta");
+        const contextBounds = context?.getBoundingClientRect();
+        const sessionMetaBounds = sessionMeta?.getBoundingClientRect();
         return {
           documentContained: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
           layoutContained: Boolean(layout && layout.scrollWidth <= layout.clientWidth + 1),
           workbenchContained: Boolean(workbench && workbench.scrollWidth <= workbench.clientWidth + 1),
           makerContained: Boolean(maker && maker.scrollWidth <= maker.clientWidth + 1),
-          composerContained: Boolean(composer && composer.scrollWidth <= composer.clientWidth + 1)
+          composerContained: Boolean(composer && composer.scrollWidth <= composer.clientWidth + 1),
+          sessionControlsSeparated: Boolean(
+            contextBounds &&
+            sessionMetaBounds &&
+            contextBounds.right <= sessionMetaBounds.left + 1
+          )
         };
       });
       expect(compactWorkshopBounds).toEqual({
@@ -1911,7 +1920,8 @@ test.describe.serial("continuity vertical slice", () => {
         layoutContained: true,
         workbenchContained: true,
         makerContained: true,
-        composerContained: true
+        composerContained: true,
+        sessionControlsSeparated: true
       });
       await running.page.locator(".claude-context-meter").click();
       await expect(contextInspector).toBeVisible();

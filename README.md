@@ -11,7 +11,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.53.0. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 prototype, version 0.54.0. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
