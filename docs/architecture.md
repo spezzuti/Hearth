@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.51.0 implementation. It is an implementation map, not a
+This document describes the current 0.52.0 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model
@@ -138,7 +138,8 @@ SQLite WAL stores:
 - resident and Living Room conversations;
 - captures, collections, idea decisions, notes, and Archive state;
 - canonical reference records, retrieval state, bounded public metadata, and project connections;
-- approved House Memory and dismissed suggestions;
+- approved House Memory, supervised House Practices, their bounded provenance, and dismissed
+  suggestions;
 - managed Workshop summaries, plans, activities, token state, context manifests, and session identity;
 - Return Packs and bounded execution reports;
 - edit recovery metadata and private backup references.

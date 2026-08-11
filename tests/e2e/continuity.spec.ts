@@ -274,7 +274,7 @@ test.describe.serial("continuity vertical slice", () => {
       });
       await expect(memoryDialog).toBeVisible();
       await expect(memoryDialog).toContainText(
-        "Only approved memories reach residents"
+        "Practices are suggestions until you approve them"
       );
       await memoryDialog
         .getByLabel("House Memory scope")
@@ -3145,6 +3145,108 @@ test.describe.serial("continuity vertical slice", () => {
       } catch {
         // The window may already be closed after a successful explicit stop.
       }
+      await running.app.close();
+    }
+  });
+
+  test("reviews, edits, adopts, dismisses, restores, and forgets a House Practice", async () => {
+    const running = await launch();
+    try {
+      await running.page.evaluate(async () => {
+        const attached = await window.hearth.attachTerminal();
+        if (attached.session && attached.session.lifecycle !== "stopped") {
+          await window.hearth.stopTerminal(attached.session.id);
+        }
+        for (let index = 0; index < 3; index += 1) {
+          const started = await window.hearth.startTerminal("powershell", "user");
+          if (!started.session) throw new Error("PowerShell practice fixture did not start.");
+          await window.hearth.stopTerminal(started.session.id);
+        }
+        await window.hearth.bootstrap();
+      });
+
+      await running.page.getByLabel("Rooms").getByRole("button", { name: /Home/ }).click();
+      await running.page.locator(".house-memory-open").click();
+      const dialog = running.page.getByRole("dialog", {
+        name: "What the house remembers"
+      });
+      const suggestion = dialog
+        .locator(".house-memory-card.is-suggestion")
+        .filter({ hasText: "re-entry" })
+        .first();
+      await expect(suggestion).toBeVisible();
+      await expect(suggestion).toContainText("Practice suggestion");
+      await expect(suggestion).toContainText("What approval changes");
+      await expect(suggestion).toContainText("supporting records");
+      await expect(suggestion).toContainText("Guidance only");
+      await suggestion.getByText("Why Hearth suggested this").click();
+      await expect(suggestion).toContainText("No project files, terminal output, or conversation text");
+      await running.page.screenshot({
+        path: path.join(screenshotDirectory, "house-practice-review.png"),
+        fullPage: true
+      });
+      await running.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(1080, 720);
+      });
+      await running.page.waitForTimeout(200);
+      const compactBounds = await running.page.evaluate(() => {
+        const dialogElement = document.querySelector<HTMLElement>(".house-memory-dialog");
+        return {
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: document.documentElement.clientWidth,
+          dialogRight: dialogElement?.getBoundingClientRect().right ?? 0,
+          dialogHeight: dialogElement?.getBoundingClientRect().height ?? 0,
+          viewportHeight: document.documentElement.clientHeight
+        };
+      });
+      expect(compactBounds.documentWidth).toBe(compactBounds.viewportWidth);
+      expect(compactBounds.dialogRight).toBeLessThanOrEqual(compactBounds.viewportWidth);
+      expect(compactBounds.dialogHeight).toBeLessThanOrEqual(compactBounds.viewportHeight);
+      await running.page.screenshot({
+        path: path.join(screenshotDirectory, "house-practice-review-1080.png"),
+        fullPage: true
+      });
+      await running.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(1440, 900);
+      });
+
+      await suggestion.getByRole("button", { name: "Edit first" }).click();
+      await dialog
+        .getByLabel("What should Hearth remember?")
+        .fill("Keep my return to this project short, calm, and concrete.");
+      await dialog.getByRole("button", { name: "Save correction" }).click();
+      const corrected = dialog
+        .locator(".house-memory-card.is-suggestion")
+        .filter({ hasText: "short, calm, and concrete" });
+      await expect(corrected).toBeVisible();
+
+      await corrected.getByRole("button", { name: "Not useful" }).click();
+      await expect(corrected).toHaveCount(0);
+      await dialog.getByRole("button", { name: /Review \d+ ignored/ }).click();
+      const ignored = dialog
+        .locator(".house-memory-card.is-dismissed")
+        .filter({ hasText: "short, calm, and concrete" });
+      await expect(ignored).toContainText("Still ignored");
+      await ignored.getByRole("button", { name: "Put back" }).click();
+
+      const restored = dialog
+        .locator(".house-memory-card.is-suggestion")
+        .filter({ hasText: "short, calm, and concrete" });
+      await restored.getByRole("button", { name: "Adopt practice" }).click();
+      const approved = dialog
+        .locator(".house-memory-card:not(.is-suggestion):not(.is-dismissed)")
+        .filter({ hasText: "short, calm, and concrete" });
+      await expect(approved).toContainText("Approved effect");
+      await expect(approved).toContainText("No added authority");
+      await approved.getByRole("button", { name: "Forget" }).click();
+      await approved.getByRole("button", { name: "Forget it" }).click();
+      await expect(approved).toHaveCount(0);
+      await expect(
+        dialog.locator(".house-memory-card.is-dismissed").filter({
+          hasText: "short, calm, and concrete"
+        })
+      ).toBeVisible();
+    } finally {
       await running.app.close();
     }
   });

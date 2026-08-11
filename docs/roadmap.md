@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.51.0 implementation described in
+This roadmap starts from the real Hearth 0.52.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -139,21 +139,21 @@ This combines Hermes-style source grounding with Buzz-style entity cards.
 **Exit met:** a recommendation explains why it is present and where the supporting fact came from, while
 Hearth remains a home base rather than an embedded browser or GitHub replacement.
 
-## Phase 4 — supervised House Practices
+## Phase 4 — supervised House Practices delivered in 0.52.0
 
 This is Hearth's safe interpretation of self-improving skills and learned approvals.
 
-- Detect repeated, low-risk workflow patterns only from explicit lifecycle metadata or a separately
+- Detects repeated, low-risk workflow patterns only from explicit lifecycle metadata or a separately
   approved sanitized fingerprint.
-- Suggest a practice with scope, evidence count, proposed effect, provenance, and a plain-language
+- Suggests a practice with scope, evidence count, proposed effect, provenance, and a plain-language
   explanation.
-- Let the user approve, edit, dismiss, restore, or forget it through House Memory.
-- Keep command approvals separate from conversational preferences. A remembered habit must never
+- Lets the user approve, edit, dismiss, restore, or forget it through House Memory.
+- Keeps command approvals separate from conversational preferences. A remembered habit never
   grant file, terminal, network, provider, or destructive authority.
-- Consider shareable skills only after provenance, versioning, update review, signature/checksum,
+- Defers shareable skills until provenance, versioning, update review, signature/checksum,
   and uninstall behavior exist. Discovery is not installation.
 
-**Exit:** Hearth becomes more familiar through reviewable habits without silently rewriting resident
+**Exit met:** Hearth becomes more familiar through reviewable habits without silently rewriting resident
 prompts or permission policy.
 
 ## Phase 5 — conversational voice

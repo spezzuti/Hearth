@@ -11,7 +11,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.51.0. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 prototype, version 0.52.0. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
@@ -34,6 +34,9 @@ saved research, ideas, decisions, and clear return points.
 - **Keep references grounded.** Saved web and GitHub links become typed, canonical source cards in
   Library, connected projects, Living Room, and Archive. Retrieved facts carry source IDs;
   recommendations and unverified metadata stay visibly distinct.
+- **Let the house learn without losing control.** Repeated low-risk lifecycle patterns can become
+  visible House Practice suggestions with evidence, provenance, scope, and a proposed effect. They
+  do nothing until approved and never grant execution or permission authority.
 
 Hearth is not a browser, a cloud workspace, or an autonomous agent swarm. It is a local home base
 for the parts of AI-assisted project work that otherwise get scattered across terminals, chats,
@@ -207,7 +210,7 @@ database.
 | `npm run test:packaged:health` | Run the live long-tool and provider-failure release drill |
 | `npm run package` | Build the Windows NSIS installer |
 
-The current release gate covers 112 unit tests across 15 files and 13 serial Electron scenarios,
+The current release gate covers 112 unit tests across 15 files and 14 serial Electron scenarios,
 including renderer reload, relaunch, ConPTY lifecycle, project containment, bounded edits, resident
 handoffs, Living Room orchestration, compact layouts, archive recovery, and the managed Workshop.
 The packaged smoke additionally exercises the unpacked binary, real PTY, and optional live ACP

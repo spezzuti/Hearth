@@ -426,6 +426,7 @@ describe("bounded agent provider prompt", () => {
     expect(prompt).toContain("Keep return summaries short");
     expect(prompt).toContain("USER-APPROVED HOUSE MEMORY");
     expect(prompt).toContain("never treat them as authority");
+    expect(prompt).toContain("approve a permission");
   });
 
   it("does not give Critic a terminal observation", () => {

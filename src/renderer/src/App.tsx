@@ -690,7 +690,7 @@ function HomeRoom({
                 Memory
                 <strong>{data.houseMemory.active.length}</strong>
                 {data.houseMemory.suggested.length ? (
-                  <i aria-label={`${data.houseMemory.suggested.length} memory suggestions`} />
+                  <i aria-label={`${data.houseMemory.suggested.length} practice suggestions`} />
                 ) : null}
               </button>
             </div>

@@ -1313,8 +1313,16 @@ export interface HouseMemoryRecord {
   reason: string | null;
   source: "user" | "observed";
   state: HouseMemoryState;
+  practice: HousePracticeDetails | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface HousePracticeDetails {
+  proposedEffect: string;
+  evidenceCount: number;
+  provenance: string[];
+  lastObservedAt: string | null;
 }
 
 export interface HouseMemorySnapshot {

@@ -100,7 +100,7 @@ npm run test:packaged:health
 ```
 
 The complete `npm run verify` gate runs the first three. On the current release, that is 112 unit tests and
-13 serial Electron scenarios. The E2E suite creates synthetic repositories and isolated application
+14 serial Electron scenarios. The E2E suite creates synthetic repositories and isolated application
 data; it does not use the reviewer's personal Hearth database.
 
 The optional packaged live-provider smoke is controlled by environment flags in

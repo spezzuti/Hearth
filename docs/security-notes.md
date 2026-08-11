@@ -19,8 +19,13 @@
   and search approved memories without opening a hidden profile or configuration file.
 - Hearth never mines resident conversation, source files, terminal output, clipboard contents, or
   captured text to create memory.
-- Automatic observations use only bounded terminal session metadata: session type, working project,
-  and repeat count. They remain suggestions until the user explicitly approves them.
+- Automatic practices use only bounded terminal-session metadata: session type, project identity,
+  repeat count, and last activity time. They remain suggestions until the user explicitly approves
+  them. The renderer receives sanitized provenance labels, never the internal observation key or a
+  raw project path.
+- A suggested practice carries a visible scope, evidence count, proposed effect, provenance, and
+  explanation. Evidence may refresh only while the suggestion is waiting. Approval or dismissal
+  freezes the record; Hearth cannot silently rewrite the accepted or declined practice later.
 - Suggested and dismissed observations are never included in a provider prompt. Dismissed
   observations remain locally reviewable so a false dismissal can be reversed and the same
   suggestion does not quietly return.
@@ -30,6 +35,9 @@
   resident, capped at four records and 1,600 characters. Work history remains withheld.
 - Memory text is delimited as untrusted user data. It cannot grant terminal ownership, file access,
   edit approval, execution rights, provider tools, or broader project context.
+- Approved practices are the same bounded untrusted guidance. They cannot start or resume a
+  session, choose a provider or mode, install a tool, open or edit a file, approve a permission,
+  change notification behavior, or alter any authority boundary.
 - Forgetting a user-authored memory deletes it. Forgetting an observed memory moves it to the
   dismissed shelf so it cannot be regenerated behind the user's back.
 

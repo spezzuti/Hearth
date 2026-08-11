@@ -184,18 +184,72 @@ describe("HearthStore continuity contract", () => {
     expect(snapshot.suggested.map((memory) => memory.text)).toEqual(
       expect.arrayContaining([
         "Claude Code is your usual Workshop session.",
-        "Hearth is a project you regularly return to."
+        "Keep re-entry to Hearth short and concrete."
       ])
     );
     const observed = snapshot.suggested.find(
       (memory) => memory.kind === "tool"
     )!;
+    expect(observed.practice).toMatchObject({
+      evidenceCount: 3,
+      proposedEffect: expect.stringContaining("session choice")
+    });
+    expect(observed.practice?.provenance).toContain("No terminal output or commands");
+    const projectPractice = snapshot.suggested.find(
+      (memory) => memory.kind === "workflow"
+    )!;
+    expect(projectPractice).toMatchObject({
+      scope: "project",
+      subjectId: "project-hearth",
+      subjectLabel: "Hearth"
+    });
+    snapshot = store.updateHouseMemory(projectPractice.id, {
+      kind: "tool",
+      scope: "house",
+      subjectId: null,
+      subjectLabel: null,
+      text: "Keep re-entry calm and concrete."
+    });
+    expect(snapshot.suggested.find((memory) => memory.id === projectPractice.id)).toMatchObject({
+      kind: "workflow",
+      scope: "project",
+      subjectId: "project-hearth",
+      text: "Keep re-entry calm and concrete."
+    });
     snapshot = store.updateHouseMemory(observed.id, { state: "active" });
     expect(snapshot.active.find((memory) => memory.id === observed.id)?.source).toBe(
       "observed"
     );
+    store.saveTerminalSession({
+      id: "00000000-0000-4000-8000-000000000004",
+      projectId: "project-hearth",
+      cwd: "C:\\Projects\\Hearth",
+      pid: null,
+      kind: "claude",
+      owner: "user",
+      lifecycle: "stopped",
+      startedAt: new Date(Date.UTC(2026, 6, 30, 12, 4)).toISOString(),
+      lastActivityAt: new Date(Date.UTC(2026, 6, 30, 12, 4)).toISOString(),
+      exitedAt: new Date(Date.UTC(2026, 6, 30, 12, 4)).toISOString(),
+      exitCode: 0,
+      claudeSessionId: null,
+      claudeName: null,
+      claudeResumable: false,
+      cols: 120,
+      rows: 30
+    });
+    snapshot = store.getHouseMemorySnapshot();
+    expect(
+      snapshot.active.find((memory) => memory.id === observed.id)?.practice?.evidenceCount
+    ).toBe(3);
+    expect(
+      snapshot.suggested.find((memory) => memory.kind === "workflow")?.practice?.evidenceCount
+    ).toBe(4);
     expect(store.getHouseMemoryEvidence("companion")).toContain(
       "Claude Code is your usual Workshop session"
+    );
+    expect(store.getHouseMemoryEvidence("companion")).toContain(
+      "approved practice, guidance only"
     );
     snapshot = store.forgetHouseMemory(observed.id);
     expect(snapshot.active.some((memory) => memory.id === observed.id)).toBe(false);

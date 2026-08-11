@@ -29,7 +29,7 @@ const RESIDENT_LABELS = {
 
 function scopeTarget(memory: HouseMemoryRecord): string {
   if (memory.scope === "house") return "house";
-  if (memory.scope === "project") return "project";
+  if (memory.scope === "project") return `project:${memory.subjectId ?? ""}`;
   return `resident:${memory.subjectId ?? "companion"}`;
 }
 
@@ -51,7 +51,9 @@ export function HouseMemoryDialog({
   onClose: () => void;
   onNotify: (message: string) => void;
 }): ReactNode {
-  const [adding, setAdding] = useState(snapshot.active.length === 0);
+  const [adding, setAdding] = useState(
+    snapshot.active.length === 0 && snapshot.suggested.length === 0
+  );
   const [editing, setEditing] = useState<HouseMemoryRecord | null>(null);
   const [kind, setKind] = useState<HouseMemoryKind>("preference");
   const [target, setTarget] = useState("house");
@@ -77,12 +79,17 @@ export function HouseMemoryDialog({
   }
 
   function input(): HouseMemoryInput {
-    if (target === "project") {
+    if (target.startsWith("project:")) {
+      const projectId = target.slice("project:".length);
+      const editedProject =
+        editing?.scope === "project" && editing.subjectId === projectId
+          ? editing
+          : null;
       return {
         kind,
         scope: "project",
-        subjectId: selectedProject.id,
-        subjectLabel: selectedProject.name,
+        subjectId: projectId,
+        subjectLabel: editedProject?.subjectLabel ?? selectedProject.name,
         text
       };
     }
@@ -140,7 +147,9 @@ export function HouseMemoryDialog({
       );
       onNotify(
         state === "active"
-          ? "That observation is now approved House Memory."
+          ? memory.practice
+            ? "That practice is approved guidance now."
+            : "That observation is now approved House Memory."
           : state === "suggested"
             ? "That observation is waiting for your decision again."
             : "Hearth will leave that observation alone."
@@ -206,8 +215,8 @@ export function HouseMemoryDialog({
             <p className="eyebrow">House Memory</p>
             <h2 id="house-memory-title">What the house remembers</h2>
             <p>
-              Only approved memories reach residents. Observations wait here
-              until you decide they’re useful.
+              Memories are yours. Practices are suggestions until you approve
+              them, and none of them can grant authority.
             </p>
           </div>
           <button type="button" aria-label="Close House Memory" onClick={onClose}>
@@ -225,7 +234,8 @@ export function HouseMemoryDialog({
             waiting
           </span>
           <p>
-            No conversation transcript or terminal output is mined for memories.
+            Practices use lifecycle counts—never conversation, source, commands,
+            or terminal output.
           </p>
         </div>
 
@@ -234,26 +244,53 @@ export function HouseMemoryDialog({
             <section className="house-memory-section">
               <div className="house-memory-section-heading">
                 <div>
-                  <p className="eyebrow">Hearth noticed</p>
-                  <h3>Nothing here is assumed yet.</h3>
+                  <p className="eyebrow">Suggested practices</p>
+                  <h3>Nothing changes until you say so.</h3>
                 </div>
               </div>
-              <div className="house-memory-list">
+              <div className="house-memory-list house-practice-list">
                 {snapshot.suggested.map((memory) => (
                   <article className="house-memory-card is-suggestion" key={memory.id}>
                     <div className="house-memory-card-meta">
-                      <span>{KIND_LABELS[memory.kind]}</span>
-                      <small>Observation</small>
+                      <span>{memory.practice ? "Practice suggestion" : KIND_LABELS[memory.kind]}</span>
+                      <small>{scopeLabel(memory)}</small>
                     </div>
                     <p>{memory.text}</p>
                     {memory.reason ? <small>{memory.reason}</small> : null}
+                    {memory.practice ? (
+                      <div className="house-practice-details">
+                        <div>
+                          <strong>What approval changes</strong>
+                          <p>{memory.practice.proposedEffect}</p>
+                        </div>
+                        <div className="house-practice-evidence">
+                          <span>{memory.practice.evidenceCount} supporting records</span>
+                          <span>Guidance only</span>
+                        </div>
+                        <details>
+                          <summary>Why Hearth suggested this</summary>
+                          <ul>
+                            {memory.practice.provenance.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      </div>
+                    ) : null}
                     <footer>
                       <button
                         type="button"
                         disabled={busy === memory.id}
                         onClick={() => void setSuggestion(memory, "active")}
                       >
-                        Remember this
+                        {memory.practice ? "Adopt practice" : "Remember this"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => edit(memory)}
+                      >
+                        Edit first
                       </button>
                       <button
                         type="button"
@@ -272,7 +309,7 @@ export function HouseMemoryDialog({
           <section className="house-memory-section">
             <div className="house-memory-section-heading">
               <div>
-                <p className="eyebrow">Approved memory</p>
+                <p className="eyebrow">Approved memory &amp; practices</p>
                 <h3>
                   {snapshot.active.length
                     ? "Shared carefully when it matters."
@@ -298,6 +335,7 @@ export function HouseMemoryDialog({
                     <select
                       aria-label="House Memory kind"
                       value={kind}
+                      disabled={Boolean(editing?.practice)}
                       onChange={(event) =>
                         setKind(event.target.value as HouseMemoryKind)
                       }
@@ -312,12 +350,19 @@ export function HouseMemoryDialog({
                     <select
                       aria-label="House Memory scope"
                       value={target}
+                      disabled={Boolean(editing?.practice)}
                       onChange={(event) => setTarget(event.target.value)}
                     >
                       <option value="house">Everyone in the house</option>
-                      <option value="project">
+                      <option value={`project:${selectedProject.id}`}>
                         Current project · {selectedProject.name}
                       </option>
+                      {editing?.scope === "project" &&
+                      editing.subjectId !== selectedProject.id ? (
+                        <option value={`project:${editing.subjectId}`}>
+                          Remembered project · {editing.subjectLabel}
+                        </option>
+                      ) : null}
                       {Object.entries(RESIDENT_LABELS).map(([value, label]) => (
                         <option value={`resident:${value}`} key={value}>
                           {label} only
@@ -368,8 +413,20 @@ export function HouseMemoryDialog({
                     <small>
                       {memory.source === "user"
                         ? "Added by you"
-                        : "Observation you approved"}
+                        : "Practice you approved"}
                     </small>
+                    {memory.practice ? (
+                      <div className="house-practice-details is-approved">
+                        <div>
+                          <strong>Approved effect</strong>
+                          <p>{memory.practice.proposedEffect}</p>
+                        </div>
+                        <div className="house-practice-evidence">
+                          <span>{memory.practice.evidenceCount} supporting records at approval</span>
+                          <span>No added authority</span>
+                        </div>
+                      </div>
+                    ) : null}
                     <footer>
                       <button
                         type="button"
@@ -397,11 +454,11 @@ export function HouseMemoryDialog({
             <section className="house-memory-section">
               <div className="house-memory-section-heading">
                 <div>
-                  <p className="eyebrow">Ignored observations</p>
+                  <p className="eyebrow">Ignored practices</p>
                   <h3>Still visible, still reversible.</h3>
                 </div>
               </div>
-              <div className="house-memory-list">
+              <div className="house-memory-list house-practice-list">
                 {snapshot.dismissed.map((memory) => (
                   <article
                     className="house-memory-card is-dismissed"
@@ -413,6 +470,18 @@ export function HouseMemoryDialog({
                     </div>
                     <p>{memory.text}</p>
                     {memory.reason ? <small>{memory.reason}</small> : null}
+                    {memory.practice ? (
+                      <div className="house-practice-details">
+                        <div>
+                          <strong>Proposed effect</strong>
+                          <p>{memory.practice.proposedEffect}</p>
+                        </div>
+                        <div className="house-practice-evidence">
+                          <span>{memory.practice.evidenceCount} supporting records</span>
+                          <span>Still ignored</span>
+                        </div>
+                      </div>
+                    ) : null}
                     <footer>
                       <button
                         type="button"
@@ -441,7 +510,7 @@ export function HouseMemoryDialog({
           ) : (
             <span>Declined observations stay ignored.</span>
           )}
-          <strong>Memory never grants terminal or file authority.</strong>
+          <strong>Memory and practices never grant terminal or file authority.</strong>
         </footer>
       </section>
     </div>

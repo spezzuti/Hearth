@@ -459,6 +459,7 @@ function mapDiscovery(row: Record<string, unknown>): LibraryDiscoveryItem {
 }
 
 function mapHouseMemory(row: Record<string, unknown>): HouseMemoryRecord {
+  const proposedEffect = asString(row.proposed_effect);
   return {
     id: asString(row.id),
     kind: asString(row.kind) as HouseMemoryRecord["kind"],
@@ -469,6 +470,17 @@ function mapHouseMemory(row: Record<string, unknown>): HouseMemoryRecord {
     reason: row.reason ? asString(row.reason) : null,
     source: asString(row.source) as HouseMemoryRecord["source"],
     state: asString(row.state) as HouseMemoryRecord["state"],
+    practice:
+      asString(row.source) === "observed" && proposedEffect
+        ? {
+            proposedEffect,
+            evidenceCount: Math.max(0, Number(row.evidence_count) || 0),
+            provenance: stringList(row.provenance_json).slice(0, 8),
+            lastObservedAt: row.last_observed_at
+              ? asString(row.last_observed_at)
+              : null
+          }
+        : null,
     createdAt: asString(row.created_at),
     updatedAt: asString(row.updated_at)
   };
@@ -1753,6 +1765,25 @@ export class HearthStore {
         throw error;
       }
     }
+
+    if (!applied.includes(31)) {
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        this.db.exec(`
+          ALTER TABLE house_memories ADD COLUMN proposed_effect TEXT;
+          ALTER TABLE house_memories ADD COLUMN evidence_count INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE house_memories ADD COLUMN provenance_json TEXT NOT NULL DEFAULT '[]';
+          ALTER TABLE house_memories ADD COLUMN last_observed_at TEXT;
+        `);
+        this.db
+          .prepare("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)")
+          .run(31, now());
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
   }
 
   private interruptOrphanedWorkshopTurns(): void {
@@ -2761,17 +2792,27 @@ export class HearthStore {
       .get(memoryId) as Record<string, unknown> | undefined;
     if (!row) throw new Error("That House Memory is no longer available.");
     const current = mapHouseMemory(row);
-    const normalized = this.normalizeHouseMemoryInput({
-      kind: patch.kind ?? current.kind,
-      scope: patch.scope ?? current.scope,
-      subjectId:
-        patch.subjectId === undefined ? current.subjectId : patch.subjectId,
-      subjectLabel:
-        patch.subjectLabel === undefined
-          ? current.subjectLabel
-          : patch.subjectLabel,
-      text: patch.text ?? current.text
-    });
+    const normalized = this.normalizeHouseMemoryInput(
+      current.practice
+        ? {
+            kind: current.kind,
+            scope: current.scope,
+            subjectId: current.subjectId,
+            subjectLabel: current.subjectLabel,
+            text: patch.text ?? current.text
+          }
+        : {
+            kind: patch.kind ?? current.kind,
+            scope: patch.scope ?? current.scope,
+            subjectId:
+              patch.subjectId === undefined ? current.subjectId : patch.subjectId,
+            subjectLabel:
+              patch.subjectLabel === undefined
+                ? current.subjectLabel
+                : patch.subjectLabel,
+            text: patch.text ?? current.text
+          }
+    );
     const nextState = patch.state ?? current.state;
     this.db
       .prepare(`
@@ -2868,7 +2909,9 @@ export class HearthStore {
           memory.scope === "house"
             ? "whole house"
             : memory.subjectLabel ?? memory.scope;
-        return `- [${memory.kind}; ${scope}] ${memory.text}`;
+        return memory.practice
+          ? `- [${memory.kind}; ${scope}; approved practice, guidance only] ${memory.text} Proposed effect: ${memory.practice.proposedEffect}`
+          : `- [${memory.kind}; ${scope}] ${memory.text}`;
       })
       .join("\n")
       .slice(0, 6_000);
@@ -4689,33 +4732,51 @@ export class HearthStore {
   }
 
   private refreshHouseMemorySuggestions(): void {
-    const counts = new Map(
+    const terminalRows =
       (
         this.db
           .prepare(`
-            SELECT kind, COUNT(*) AS count
+            SELECT kind, COUNT(*) AS count, MAX(last_activity_at) AS last_observed_at
             FROM terminal_sessions
             GROUP BY kind
           `)
           .all() as Record<string, unknown>[]
-      ).map((row) => [asString(row.kind), Number(row.count) || 0])
+      );
+    const terminalCounts = new Map(
+      terminalRows.map((row) => [asString(row.kind), Number(row.count) || 0])
     );
-    const claudeCount = counts.get("claude") ?? 0;
-    const powershellCount = counts.get("powershell") ?? 0;
-    if (claudeCount >= 2 && claudeCount > powershellCount) {
+    const claudeCount = terminalCounts.get("claude") ?? 0;
+    const powershellCount = terminalCounts.get("powershell") ?? 0;
+    const lastClaudeSession = terminalRows.find((row) => asString(row.kind) === "claude");
+    if (claudeCount >= 3 && claudeCount > powershellCount) {
       this.insertHouseMemorySuggestion(
-        "terminal:claude-usual",
-        "tool",
-        `Claude Code is your usual Workshop session.`,
-        `Hearth has recorded ${claudeCount} Claude Code session${claudeCount === 1 ? "" : "s"} and ${powershellCount} PowerShell session${powershellCount === 1 ? "" : "s"}.`
+        {
+          observationKey: "terminal:claude-usual",
+          kind: "tool",
+          scope: "house",
+          subjectId: null,
+          subjectLabel: null,
+          text: "Claude Code is your usual Workshop session.",
+          reason: `Hearth has recorded ${claudeCount} Claude Code sessions and ${powershellCount} PowerShell session${powershellCount === 1 ? "" : "s"}.`,
+          proposedEffect: "Prefer Claude Code when Hearth describes the likely Workshop path, while leaving the actual session choice with you.",
+          evidenceCount: claudeCount + powershellCount,
+          provenance: [
+            "Workshop session type",
+            "Completed or stopped session records",
+            "No terminal output or commands"
+          ],
+          lastObservedAt: lastClaudeSession
+            ? asString(lastClaudeSession.last_observed_at) || null
+            : null
+        }
       );
     }
 
     const projectRows = this.db
       .prepare(`
-        SELECT cwd, COUNT(*) AS count
+        SELECT project_id, cwd, COUNT(*) AS count, MAX(last_activity_at) AS last_observed_at
         FROM terminal_sessions
-        GROUP BY LOWER(cwd)
+        GROUP BY project_id, LOWER(cwd)
         HAVING COUNT(*) >= 3
         ORDER BY count DESC, MAX(last_activity_at) DESC
         LIMIT 3
@@ -4724,36 +4785,83 @@ export class HearthStore {
     for (const row of projectRows) {
       const cwd = asString(row.cwd);
       const projectName = path.basename(cwd) || "This project";
+      const projectId = asString(row.project_id);
       const count = Number(row.count) || 0;
       this.insertHouseMemorySuggestion(
-        `project-return:${cwd.toLocaleLowerCase()}`,
-        "project",
-        `${projectName} is a project you regularly return to.`,
-        `Hearth has recorded ${count} Workshop sessions here.`
+        {
+          observationKey: `project-return:${projectId}:${cwd.toLocaleLowerCase()}`,
+          kind: "workflow",
+          scope: "project",
+          subjectId: projectId,
+          subjectLabel: projectName,
+          text: `Keep re-entry to ${projectName} short and concrete.`,
+          reason: `Hearth has recorded ${count} Workshop sessions for this project.`,
+          proposedEffect: `When ${projectName} is current, prioritize its latest return point and one clear next action in resident guidance.`,
+          evidenceCount: count,
+          provenance: [
+            "Project-scoped Workshop session count",
+            "Last session activity time",
+            "No project files, terminal output, or conversation text"
+          ],
+          lastObservedAt: asString(row.last_observed_at) || null
+        }
       );
     }
   }
 
   private insertHouseMemorySuggestion(
-    observationKey: string,
-    kind: HouseMemoryRecord["kind"],
-    text: string,
-    reason: string
+    suggestion: {
+      observationKey: string;
+      kind: HouseMemoryRecord["kind"];
+      scope: HouseMemoryRecord["scope"];
+      subjectId: string | null;
+      subjectLabel: string | null;
+      text: string;
+      reason: string;
+      proposedEffect: string;
+      evidenceCount: number;
+      provenance: string[];
+      lastObservedAt: string | null;
+    }
   ): void {
     const timestamp = now();
     this.db
       .prepare(`
-        INSERT OR IGNORE INTO house_memories(
+        INSERT INTO house_memories(
           id, kind, scope, subject_id, subject_label, text, reason,
-          source, state, observation_key, created_at, updated_at
-        ) VALUES (?, ?, 'house', NULL, NULL, ?, ?, 'observed', 'suggested', ?, ?, ?)
+          source, state, observation_key, proposed_effect, evidence_count,
+          provenance_json, last_observed_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'observed', 'suggested', ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(observation_key) DO UPDATE SET
+          reason = excluded.reason,
+          proposed_effect = excluded.proposed_effect,
+          evidence_count = excluded.evidence_count,
+          provenance_json = excluded.provenance_json,
+          last_observed_at = excluded.last_observed_at,
+          updated_at = excluded.updated_at
+        WHERE
+          house_memories.state = 'suggested'
+          AND (
+            house_memories.reason <> excluded.reason
+            OR house_memories.proposed_effect <> excluded.proposed_effect
+            OR house_memories.evidence_count <> excluded.evidence_count
+            OR house_memories.provenance_json <> excluded.provenance_json
+            OR COALESCE(house_memories.last_observed_at, '') <> COALESCE(excluded.last_observed_at, '')
+          )
       `)
       .run(
         randomUUID(),
-        kind,
-        text.slice(0, 600),
-        reason.slice(0, 600),
-        observationKey.slice(0, 2_000),
+        suggestion.kind,
+        suggestion.scope,
+        suggestion.subjectId,
+        suggestion.subjectLabel,
+        suggestion.text.slice(0, 600),
+        suggestion.reason.slice(0, 600),
+        suggestion.observationKey.slice(0, 2_000),
+        suggestion.proposedEffect.slice(0, 600),
+        Math.max(1, Math.floor(suggestion.evidenceCount)),
+        JSON.stringify(suggestion.provenance.slice(0, 8).map((item) => item.slice(0, 240))),
+        suggestion.lastObservedAt,
         timestamp,
         timestamp
       );

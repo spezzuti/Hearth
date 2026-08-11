@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.51.0. It records the Phase 3 grounded
-reference work completed and verified on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.52.0. It records the Phase 4 supervised House
+Practices work completed and verified on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -39,10 +39,36 @@ and explicit milestone records resume with 0.48.0:
 | 0.49.0 | Activity-aware managed turns, explicit recovery fate, per-turn usage, and Provider Doctor. |
 | 0.49.1 | Long-tool health renewal, truthful adapter-loss state, permission cleanup, and a repeatable packaged health drill. |
 | 0.50.0 | Persisted per-turn context manifests, provider/local accounting separation, and threshold-aware continuity choices. |
-| 0.51.0 current | Typed canonical references, bounded public metadata, calm cross-room source cards, and Librarian citation rules. |
+| 0.51.0 | Typed canonical references, bounded public metadata, calm cross-room source cards, and Librarian citation rules. |
+| 0.52.0 current | Supervised House Practices with evidence, provenance, explicit effects, scoped approval, and frozen decisions. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
+
+## Phase 4 outcome
+
+### Reviewable practices, not hidden learning
+
+- Hearth derives only two deliberately narrow practice families: the usual Workshop session type
+  and repeated returns to one project. Both use explicit session kind, project identity, counts, and
+  last activity time; conversation, commands, terminal output, source files, captures, and clipboard
+  contents are excluded.
+- Every suggestion shows its scope, supporting-record count, sanitized provenance, proposed effect,
+  and a plain-language explanation before approval.
+- Waiting suggestions may refresh when the same lifecycle evidence changes. Approval or dismissal
+  freezes the observed evidence and wording so Hearth cannot silently rewrite a decision afterward.
+
+### Deliberate control and bounded effect
+
+- The House Memory drawer supports edit-before-approval, adopt, dismiss, restore, correct, and
+  forget. Dismissed or forgotten observed practices remain locally suppressed so they do not quietly
+  regenerate.
+- An approved practice becomes bounded resident guidance only. It can improve relevance or favor a
+  likely return path, but cannot start a session, choose a mode or provider, open or edit a file,
+  install anything, approve a permission, or alter a security boundary.
+- Project practices keep their original project identity when edited; changing the currently
+  selected project cannot silently retarget an older memory.
+- The drawer uses a full-width practice review card and remains contained at 1440×900 and 1080×720.
 
 ## Phase 3 outcome
 
@@ -177,10 +203,11 @@ two-hour absolute ceiling is intentionally not waited out in automation.
 
 ## Current quality signal
 
-- Type checking, 112 unit tests across 15 files, the production build, and all 13 serial Electron
-  scenarios pass for 0.51.0. The rebuilt 0.50.0 Claude/Codex packaged baseline also passes; the
+- Type checking, 112 unit tests across 15 files, the production build, and all 14 serial Electron
+  scenarios pass for 0.52.0. The rebuilt 0.50.0 Claude/Codex packaged baseline also passes; the
   0.49.1 destructive health drill remains the latest runtime-failure evidence.
-- The 0.51.0 Electron run exercised canonical reference capture, Library and Study cards, context
+- The 0.52.0 Electron run exercised the complete practice review lifecycle, responsive containment,
+  canonical reference capture, Library and Study cards, context
   inspection, migration persistence, compact containment, continuity, real ConPTY behavior, handoffs, Living Room,
   project-scoped conversations, reload/relaunch, and responsive layouts.
 - Project discovery and edit recovery now compare canonical Windows paths, so short-path aliases such
