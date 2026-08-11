@@ -10,7 +10,9 @@ import type {
   ProjectEditCritique,
   ReasoningAgent,
   ResidentProviderStatus,
-  TerminalObservation
+  TerminalObservation,
+  WorkshopContextContribution,
+  WorkshopContextManifest
 } from "../shared/contracts";
 import { isCasualSocialTurn } from "./conversation-intent";
 import {
@@ -55,7 +57,10 @@ function boundedPromptText(
   return `${text.slice(0, maxCharacters)}\n\n[${boundary}]`;
 }
 
-function recentConversation(request: AgentReasoningRequest): string {
+function recentConversationSelection(request: AgentReasoningRequest): {
+  text: string;
+  messages: ConversationMessage[];
+} {
   const speaker =
     request.agent === "maker"
       ? "Maker"
@@ -65,7 +70,7 @@ function recentConversation(request: AgentReasoningRequest): string {
           ? "Critic"
           : "Librarian";
   const messages = request.history.slice(-MAX_HISTORY_MESSAGES);
-  const selected: string[] = [];
+  const selected: Array<{ line: string; message: ConversationMessage }> = [];
   let remaining = MAX_HISTORY_CHARACTERS;
 
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -78,11 +83,18 @@ function recentConversation(request: AgentReasoningRequest): string {
         ? `${message.text.slice(Math.max(0, message.text.length - available + 44))}\n[Earlier part of this message omitted.]`
         : message.text;
     const line = `${prefix}${text}`;
-    selected.unshift(line);
+    selected.unshift({ line, message });
     remaining -= line.length + 2;
   }
 
-  return selected.join("\n\n");
+  return {
+    text: selected.map((entry) => entry.line).join("\n\n"),
+    messages: selected.map((entry) => entry.message)
+  };
+}
+
+function recentConversation(request: AgentReasoningRequest): string {
+  return recentConversationSelection(request).text;
 }
 
 export function residentInterruptionReply(agent: ReasoningAgent): string {
@@ -575,6 +587,13 @@ export function buildManagedMakerPrompt(
   request: AgentReasoningRequest,
   continuingSession: boolean
 ): string {
+  return buildManagedMakerPromptContext(request, continuingSession).prompt;
+}
+
+export function buildManagedMakerPromptContext(
+  request: AgentReasoningRequest,
+  continuingSession: boolean
+): { prompt: string; manifest: WorkshopContextManifest } {
   const turnRequest = continuingSession
     ? { ...request, history: [], houseMemory: null }
     : request;
@@ -591,7 +610,130 @@ export function buildManagedMakerPrompt(
         "The left workstream is the canonical technical record and already shows your tool activity. Your spoken response is Maker beside that stream, not a second technical log.",
         "Unless the user asked for a detailed explanation, finish with the smallest useful human update: what happened, your honest read, and the next decision only if there is one."
       ];
-  return [...sessionFrame, buildAgentPrompt(turnRequest)].join("\n\n");
+  const prompt = [...sessionFrame, buildAgentPrompt(turnRequest)].join("\n\n");
+  const casualSocial = isCasualSocialTurn(turnRequest.text);
+  const recent = casualSocial
+    ? { text: "", messages: [] }
+    : recentConversationSelection(turnRequest);
+  const boundedSource = boundedPromptText(
+    turnRequest.sourceEvidence,
+    MAX_SOURCE_EVIDENCE_CHARACTERS,
+    "Hearth omitted the rest of the source packet to keep this reply stable. Ask for a narrower handoff if the missing portion matters."
+  );
+  const boundedTerminal = boundedPromptText(
+    turnRequest.terminalEvidence,
+    MAX_TERMINAL_EVIDENCE_CHARACTERS,
+    "Older terminal output omitted."
+  );
+  const boundedMemory = boundedPromptText(
+    turnRequest.houseMemory,
+    MAX_HOUSE_MEMORY_CHARACTERS,
+    "Older House Memory omitted."
+  );
+  const projectCharacters = turnRequest.context
+    ? turnRequest.context.projectName.length +
+      turnRequest.context.kind.length +
+      (turnRequest.context.path?.length ?? 0) +
+      turnRequest.context.summary.length +
+      turnRequest.context.evidence.reduce((total, item) => total + item.length, 0) +
+      turnRequest.context.concerns.reduce((total, item) => total + item.length, 0) +
+      (boundedSource?.length ?? 0)
+    : 0;
+  const terminalCharacters = turnRequest.terminalObservation
+    ? turnRequest.terminalObservation.state.length +
+      turnRequest.terminalObservation.summary.length +
+      (boundedTerminal?.length ?? 0)
+    : boundedTerminal?.length ?? 0;
+  const executionCharacters = turnRequest.executionResult
+    ? turnRequest.executionResult.changedFiles.reduce((total, item) => total + item.length, 0) +
+      turnRequest.executionResult.validation.reduce((total, item) => total + item.length, 0) +
+      turnRequest.executionResult.concerns.reduce((total, item) => total + item.length, 0) +
+      turnRequest.executionResult.decision.length
+    : 0;
+  const payloads: WorkshopContextContribution[] = [
+    {
+      kind: "current_direction",
+      label: "Current direction",
+      characters: turnRequest.text.length,
+      truncated: false,
+      detail: "Your current Workshop message, supplied in full."
+    },
+    {
+      kind: "recent_conversation",
+      label: "Recent conversation",
+      characters: recent.text.length,
+      truncated:
+        !continuingSession && !casualSocial &&
+        (request.history.length > recent.messages.length || recent.text.includes("Earlier part of this message omitted.")),
+      detail: continuingSession
+        ? "Not resent; Claude's resumed session carries its own provider-side history."
+        : casualSocial
+          ? "Withheld for this casual turn."
+          : "A bounded tail of the visible Maker conversation."
+    },
+    {
+      kind: "project_evidence",
+      label: "Project evidence",
+      characters: projectCharacters,
+      truncated: Boolean(turnRequest.sourceEvidence && turnRequest.sourceEvidence.length > MAX_SOURCE_EVIDENCE_CHARACTERS),
+      detail: "The explicit Study handoff and bounded source packet, when present."
+    },
+    {
+      kind: "terminal_view",
+      label: "Terminal view",
+      characters: terminalCharacters,
+      truncated: Boolean(turnRequest.terminalEvidence && turnRequest.terminalEvidence.length > MAX_TERMINAL_EVIDENCE_CHARACTERS),
+      detail: "The bounded recent terminal view and its current observation, when relevant."
+    },
+    {
+      kind: "execution_report",
+      label: "Execution report",
+      characters: executionCharacters,
+      truncated: false,
+      detail: "The active Claude Code execution report, when one is being tracked."
+    },
+    {
+      kind: "house_memory",
+      label: "Approved memory",
+      characters: boundedMemory?.length ?? 0,
+      truncated: Boolean(turnRequest.houseMemory && turnRequest.houseMemory.length > MAX_HOUSE_MEMORY_CHARACTERS),
+      detail: continuingSession
+        ? "Not resent into an existing Claude session."
+        : "Only user-approved House Memory relevant to this resident and project."
+    }
+  ];
+  const payloadCharacters = payloads.reduce((total, contribution) => total + contribution.characters, 0);
+  const contributions: WorkshopContextContribution[] = [
+    {
+      kind: "hearth_frame",
+      label: "Hearth instructions & framing",
+      characters: Math.max(0, prompt.length - payloadCharacters),
+      truncated: false,
+      detail: "Maker's role, authority boundaries, labels, and safety framing."
+    },
+    ...payloads
+  ];
+  const suppliedMessageIds = new Set(recent.messages.map((message) => message.id));
+  const preservedUserTail = request.history
+    .filter((message) => message.role === "user")
+    .slice(-4)
+    .map((message) => ({
+      text: message.text.length > 500
+        ? `${message.text.slice(0, 500)}…`
+        : message.text,
+      createdAt: message.createdAt,
+      sentAsRecentContext: suppliedMessageIds.has(message.id)
+    }));
+  return {
+    prompt,
+    manifest: {
+      continuingSession,
+      promptCharacters: prompt.length,
+      contributions,
+      preservedUserTail,
+      capturedAt: now()
+    }
+  };
 }
 
 export function agentStreamDelta(envelope: unknown): string | null {

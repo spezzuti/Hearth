@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   writeFile
 } from "node:fs/promises";
@@ -14,8 +15,26 @@ import { HearthStore } from "../../src/core/store";
 import type { MakerProposal } from "../../src/shared/contracts";
 
 const cleanup: string[] = [];
+const openStores = new Set<HearthStore>();
+
+async function openTestStore(
+  dataDirectory: string,
+  projectRoot: string
+): Promise<HearthStore> {
+  const store = await HearthStore.open(dataDirectory, projectRoot);
+  openStores.add(store);
+  return store;
+}
 
 afterEach(async () => {
+  for (const store of openStores) {
+    try {
+      store.close();
+    } catch {
+      // A restart test may already have closed this handle deliberately.
+    }
+  }
+  openStores.clear();
   while (cleanup.length > 0) {
     const target = cleanup.pop();
     if (target) await rm(target, { recursive: true, force: true });
@@ -35,14 +54,15 @@ describe("ProjectManager bounded project review", () => {
     await mkdir(installRoot, { recursive: true });
     await writeFile(path.join(installRoot, "Hearth.exe"), "packaged fixture");
 
-    const store = await HearthStore.open(dataDirectory, installRoot);
+    const store = await openTestStore(dataDirectory, installRoot);
     store.saveWorkspaceSelection(installRoot);
     const projects = new ProjectManager(store, homeRoot, installRoot);
     const catalog = await projects.list();
+    const canonicalHearthRoot = await realpath(hearthRoot);
 
     expect(catalog.projects.some((project) => project.rootPath === installRoot)).toBe(false);
-    expect(catalog.selectedProject.rootPath).toBe(hearthRoot);
-    expect(store.getWorkspaceSelection()).toBe(hearthRoot);
+    expect(catalog.selectedProject.rootPath).toBe(canonicalHearthRoot);
+    expect(store.getWorkspaceSelection()).toBe(canonicalHearthRoot);
     store.close();
   });
 
@@ -105,15 +125,16 @@ describe("ProjectManager bounded project review", () => {
       "export const greeting = \"Hearth changed this line\";\n"
     );
 
-    const store = await HearthStore.open(dataDirectory, hearthRoot);
+    const store = await openTestStore(dataDirectory, hearthRoot);
     const projects = new ProjectManager(store, homeRoot, hearthRoot);
     const catalog = await projects.list();
     const example = catalog.projects.find((project) => project.name === "Example Project");
     expect(example?.signals).toEqual(expect.arrayContaining(["git", "claude"]));
 
     const selected = await projects.select(example!.id);
-    expect(selected.rootPath).toBe(exampleRoot);
-    expect(store.getWorkspaceSelection()).toBe(exampleRoot);
+    const canonicalExampleRoot = await realpath(exampleRoot);
+    expect(selected.rootPath).toBe(canonicalExampleRoot);
+    expect(store.getWorkspaceSelection()).toBe(canonicalExampleRoot);
 
     const detail = await projects.detail(example!.id);
     expect(detail.description).toContain("bounded project review");
@@ -341,7 +362,7 @@ describe("ProjectManager bounded project review", () => {
     await mkdir(path.join(hearthRoot, ".git"), { recursive: true });
     await writeFile(path.join(hearthRoot, ".git", "HEAD"), "ref: refs/heads/main\n");
 
-    const store = await HearthStore.open(dataDirectory, hearthRoot);
+    const store = await openTestStore(dataDirectory, hearthRoot);
     const saved = store.saveCapture(
       "Build a small room where unfinished ideas can breathe.",
       undefined,
@@ -353,9 +374,9 @@ describe("ProjectManager bounded project review", () => {
     const projects = new ProjectManager(store, homeRoot, hearthRoot);
     const created = await projects.createFromIdea(idea, "Quiet Ideas");
 
-    expect(created.project.rootPath).toBe(
+    expect(created.project.rootPath).toBe(await realpath(
       path.join(homeRoot, "Hearth Projects", "Quiet Ideas")
-    );
+    ));
     expect(created.project.signals).toContain("hearth");
     expect(
       await readFile(path.join(created.project.rootPath, "IDEA.md"), "utf8")
@@ -379,7 +400,7 @@ describe("ProjectManager bounded project review", () => {
     await writeFile(path.join(projectRoot, ".git", "HEAD"), "ref: refs/heads/main\n");
     await writeFile(path.join(projectRoot, "notes.md"), "# Before\n");
 
-    let store = await HearthStore.open(dataDirectory, projectRoot);
+    let store = await openTestStore(dataDirectory, projectRoot);
     let projects = new ProjectManager(store, homeRoot, projectRoot);
     const catalog = await projects.list();
     const project = catalog.projects.find(
@@ -396,7 +417,7 @@ describe("ProjectManager bounded project review", () => {
     );
     store.close();
 
-    store = await HearthStore.open(dataDirectory, projectRoot);
+    store = await openTestStore(dataDirectory, projectRoot);
     projects = new ProjectManager(store, homeRoot, projectRoot);
     await projects.list();
     const records = await projects.listEdits(project.id);

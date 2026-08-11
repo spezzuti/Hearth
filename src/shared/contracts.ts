@@ -1011,6 +1011,35 @@ export interface WorkshopTurnUsage {
   reportedAt: string;
 }
 
+export type WorkshopContextContributionKind =
+  | "hearth_frame"
+  | "current_direction"
+  | "recent_conversation"
+  | "project_evidence"
+  | "terminal_view"
+  | "execution_report"
+  | "house_memory";
+
+export interface WorkshopContextContribution {
+  kind: WorkshopContextContributionKind;
+  label: string;
+  characters: number;
+  truncated: boolean;
+  detail: string;
+}
+
+export interface WorkshopContextManifest {
+  continuingSession: boolean;
+  promptCharacters: number;
+  contributions: WorkshopContextContribution[];
+  preservedUserTail: Array<{
+    text: string;
+    createdAt: string;
+    sentAsRecentContext: boolean;
+  }>;
+  capturedAt: string;
+}
+
 export interface WorkshopTurn {
   id: string;
   workspaceProjectId: string;
@@ -1023,6 +1052,7 @@ export interface WorkshopTurn {
   permissions: MakerPermissionRequest[];
   health: WorkshopTurnHealth | null;
   usage: WorkshopTurnUsage | null;
+  contextManifest: WorkshopContextManifest | null;
   status: "running" | "completed" | "cancelled" | "failed";
   startedAt: string;
   updatedAt: string;
@@ -1036,6 +1066,7 @@ export type AgentStreamEvent =
       requestId: string;
       prompt?: string;
       startedAt?: string;
+      contextManifest?: WorkshopContextManifest;
     }
   | {
       type: "delta";

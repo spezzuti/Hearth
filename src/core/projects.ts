@@ -583,6 +583,13 @@ export class ProjectManager {
   async list(refresh = false): Promise<WorkspaceCatalog> {
     if (this.catalog && !refresh) return this.catalog;
 
+    const canonicalSelectedRoot = await realpath(this.selectedRoot).catch(
+      () => this.selectedRoot
+    );
+    const canonicalDefaultRoot = await realpath(this.defaultRoot).catch(
+      () => this.defaultRoot
+    );
+
     const candidates: string[] = [this.defaultRoot];
     const queue: Array<{ root: string; depth: number }> = [{ root: this.homeRoot, depth: 0 }];
     let visited = 0;
@@ -629,16 +636,17 @@ export class ProjectManager {
     const summaries: WorkspaceProjectSummary[] = [];
     for (const root of unique) {
       try {
-        const info = await stat(root);
+        const canonicalRoot = await realpath(root);
+        const info = await stat(canonicalRoot);
         if (!info.isDirectory()) continue;
-        const signals = await signalsAt(root);
+        const signals = await signalsAt(canonicalRoot);
         if (signals.length === 0) continue;
         summaries.push({
-          id: projectId(root),
-          name: path.basename(root) || "Hearth",
-          rootPath: root,
+          id: projectId(canonicalRoot),
+          name: path.basename(canonicalRoot) || "Hearth",
+          rootPath: canonicalRoot,
           signals,
-          branch: signals.includes("git") ? await readBranch(root) : null,
+          branch: signals.includes("git") ? await readBranch(canonicalRoot) : null,
           lastTouchedAt: info.mtime.toISOString(),
           selected: false
         });
@@ -649,11 +657,11 @@ export class ProjectManager {
 
     let selected = summaries.find(
       (project) =>
-        project.rootPath.toLocaleLowerCase() === this.selectedRoot.toLocaleLowerCase()
+        project.rootPath.toLocaleLowerCase() === canonicalSelectedRoot.toLocaleLowerCase()
     );
     selected ??= summaries.find(
       (project) =>
-        project.rootPath.toLocaleLowerCase() === this.defaultRoot.toLocaleLowerCase()
+        project.rootPath.toLocaleLowerCase() === canonicalDefaultRoot.toLocaleLowerCase()
     );
     selected ??= summaries.find(
       (project) =>
@@ -779,10 +787,11 @@ export class ProjectManager {
       throw error;
     }
 
+    const canonicalTargetRoot = await realpath(targetRoot);
     const catalog = await this.list(true);
     const project = catalog.projects.find(
       (candidate) =>
-        candidate.rootPath.toLocaleLowerCase() === targetRoot.toLocaleLowerCase()
+        candidate.rootPath.toLocaleLowerCase() === canonicalTargetRoot.toLocaleLowerCase()
     );
     if (!project) {
       throw new Error("The project folder was created, but Hearth could not add it to the shelf.");
@@ -1551,9 +1560,11 @@ export class ProjectManager {
     }
     await this.ensureCatalog();
     const project = this.requireProject(stored.projectId);
-    if (
-      project.rootPath.toLocaleLowerCase() !== stored.rootPath.toLocaleLowerCase()
-    ) {
+    const [canonicalProjectRoot, canonicalStoredRoot] = await Promise.all([
+      realpath(project.rootPath),
+      realpath(stored.rootPath)
+    ]);
+    if (canonicalProjectRoot.toLocaleLowerCase() !== canonicalStoredRoot.toLocaleLowerCase()) {
       throw new Error("The edit backup no longer matches its discovered project.");
     }
     const filePath = await this.resolveInside(project.rootPath, stored.path);
@@ -1569,9 +1580,6 @@ export class ProjectManager {
     }
     const canonicalBackupRoot = await realpath(this.store.backupsPath);
     const requestedBackup = path.resolve(stored.backupPath);
-    if (!isInside(canonicalBackupRoot, requestedBackup)) {
-      throw new Error("Hearth rejected an edit backup outside its private recovery folder.");
-    }
     const backupPath = await realpath(requestedBackup);
     if (!isInside(canonicalBackupRoot, backupPath)) {
       throw new Error("Hearth rejected an edit backup link outside recovery.");

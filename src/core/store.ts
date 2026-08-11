@@ -51,6 +51,7 @@ import type {
   TerminalSession,
   TerminalSnapshot,
   WorkspaceProjectSummary,
+  WorkshopContextManifest,
   WorkshopTurn
 } from "../shared/contracts";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "../shared/contracts";
@@ -411,6 +412,7 @@ function mapWorkshopTurn(row: Record<string, unknown>): WorkshopTurn {
     permissions: jsonValue<MakerPermissionRequest[]>(row.permissions_json, []),
     health: jsonValue<WorkshopTurn["health"]>(row.health_json, null),
     usage: jsonValue<WorkshopTurn["usage"]>(row.usage_json, null),
+    contextManifest: jsonValue<WorkshopTurn["contextManifest"]>(row.context_json, null),
     status: asString(row.status) as WorkshopTurn["status"],
     startedAt: asString(row.started_at),
     updatedAt: asString(row.updated_at),
@@ -1693,6 +1695,22 @@ export class HearthStore {
         this.db
           .prepare("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)")
           .run(28, now());
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+
+    if (!applied.includes(29)) {
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        this.db.exec(`
+          ALTER TABLE managed_workshop_turns ADD COLUMN context_json TEXT;
+        `);
+        this.db
+          .prepare("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)")
+          .run(29, now());
         this.db.exec("COMMIT");
       } catch (error) {
         this.db.exec("ROLLBACK");
@@ -4269,6 +4287,7 @@ export class HearthStore {
     requestId: string,
     workspace: ConversationScope,
     prompt: string,
+    contextManifest: WorkshopContextManifest,
     startedAt = now()
   ): void {
     this.db.prepare(`
@@ -4285,13 +4304,14 @@ export class HearthStore {
       INSERT INTO managed_workshop_turns(
         id, workspace_project_id, root_path, prompt, activities_json,
         plan_json, thoughts, session_state_json, permissions_json,
-        status, started_at, updated_at, completed_at
-      ) VALUES (?, ?, ?, ?, '[]', '[]', '', NULL, '[]', 'running', ?, ?, NULL)
+        context_json, status, started_at, updated_at, completed_at
+      ) VALUES (?, ?, ?, ?, '[]', '[]', '', NULL, '[]', ?, 'running', ?, ?, NULL)
     `).run(
       requestId,
       workspace.workspaceProjectId,
       workspace.rootPath,
       prompt,
+      JSON.stringify(contextManifest),
       startedAt,
       startedAt
     );

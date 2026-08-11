@@ -41,6 +41,7 @@ import type {
   MakerSessionState,
   WorkshopTurnHealth,
   WorkshopTurnUsage,
+  WorkshopContextManifest,
   MakerWorkPlanEntry,
   MakerWorkActivity,
   NotificationPreferences,
@@ -4088,6 +4089,7 @@ export function App(): ReactNode {
   const [makerSessionState, setMakerSessionState] = useState<MakerSessionState | null>(null);
   const [makerTurnHealth, setMakerTurnHealth] = useState<WorkshopTurnHealth | null>(null);
   const [makerTurnUsage, setMakerTurnUsage] = useState<WorkshopTurnUsage | null>(null);
+  const [makerContextManifest, setMakerContextManifest] = useState<WorkshopContextManifest | null>(null);
   const [makerPermissions, setMakerPermissions] = useState<MakerPermissionRequest[]>([]);
   const [makerWorkRequestId, setMakerWorkRequestId] = useState<string | null>(null);
   const [makerWorking, setMakerWorking] = useState(false);
@@ -4165,6 +4167,7 @@ export function App(): ReactNode {
     setMakerSessionState(activeTurn?.sessionState ?? null);
     setMakerTurnHealth(activeTurn?.health ?? null);
     setMakerTurnUsage(activeTurn?.usage ?? null);
+    setMakerContextManifest(activeTurn?.contextManifest ?? null);
     setMakerPermissions(activeTurn?.permissions ?? []);
     setMakerWorkRequestId(activeTurn?.id ?? null);
     setMakerWorking(Boolean(activeTurn));
@@ -4297,6 +4300,7 @@ export function App(): ReactNode {
           setMakerPermissions([]);
           setMakerTurnHealth(null);
           setMakerTurnUsage(null);
+          setMakerContextManifest(event.contextManifest ?? null);
         } else if (event.type === "activity") {
           setMakerWorkActivities((current) => {
             const existing = current.findIndex((item) => item.id === event.activity.id);
@@ -5456,11 +5460,13 @@ export function App(): ReactNode {
               sessionState={makerSessionState}
               turnHealth={makerTurnHealth}
               turnUsage={makerTurnUsage}
+              contextManifest={makerContextManifest}
               permissions={makerPermissions}
               working={makerWorking}
               onResolvePermission={resolveMakerPermission}
               onCancelAgent={() => cancelAgentMessage("maker")}
               onStartFresh={resetMakerSession}
+              onPrepareReturnPack={() => setLeaveOpen(true)}
               proposal={data.makerProposal}
               onUpdateProposal={updateMakerProposal}
               onDiscardProposal={discardMakerProposal}

@@ -22,6 +22,7 @@ import type {
   MakerSessionState,
   WorkshopTurnHealth,
   WorkshopTurnUsage,
+  WorkshopContextManifest,
   MakerWorkActivity,
   MakerWorkPlanEntry,
   TerminalEvent,
@@ -1323,6 +1324,7 @@ function ClaudeWorkbench({
   sessionState,
   turnHealth,
   turnUsage,
+  contextManifest,
   permissions,
   messages,
   working,
@@ -1331,6 +1333,7 @@ function ClaudeWorkbench({
   onConfigureSession,
   onCancel,
   onStartFresh,
+  onPrepareReturnPack,
   onResolvePermission,
   initialDraft
 }: {
@@ -1344,6 +1347,7 @@ function ClaudeWorkbench({
   sessionState: MakerSessionState | null;
   turnHealth: WorkshopTurnHealth | null;
   turnUsage: WorkshopTurnUsage | null;
+  contextManifest: WorkshopContextManifest | null;
   permissions: MakerPermissionRequest[];
   messages: ConversationMessage[];
   working: boolean;
@@ -1352,15 +1356,19 @@ function ClaudeWorkbench({
   onConfigureSession: (control: MakerSessionControl) => Promise<boolean>;
   onCancel: () => Promise<void>;
   onStartFresh: () => Promise<void>;
+  onPrepareReturnPack: () => void;
   onResolvePermission: (permissionId: string, optionId: string) => Promise<void>;
   initialDraft: { id: string; text: string } | null;
 }): ReactNode {
   const [message, setMessage] = useState("");
   const [nowMs, setNowMs] = useState(Date.now());
   const [followLatest, setFollowLatest] = useState(true);
+  const [contextInspectorOpen, setContextInspectorOpen] = useState(false);
   const [configuring, setConfiguring] = useState<MakerSessionControl["kind"] | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const contextButtonRef = useRef<HTMLButtonElement | null>(null);
+  const contextCloseRef = useRef<HTMLButtonElement | null>(null);
   const latestUser = messages.findLast((item) => item.role === "user") ?? null;
   const persistedCurrent = requestId ? turns.find((turn) => turn.id === requestId) : null;
   const liveTurn: WorkshopTurn | null = requestId
@@ -1376,6 +1384,7 @@ function ClaudeWorkbench({
         permissions,
         health: turnHealth ?? persistedCurrent?.health ?? null,
         usage: turnUsage ?? persistedCurrent?.usage ?? null,
+        contextManifest: persistedCurrent?.contextManifest ?? null,
         status: working ? "running" : persistedCurrent?.status ?? "completed",
         startedAt: persistedCurrent?.startedAt ?? latestUser?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1385,6 +1394,10 @@ function ClaudeWorkbench({
   const visibleTurns = liveTurn
     ? [...turns.filter((turn) => turn.id !== liveTurn.id), liveTurn]
     : turns;
+  const effectiveContextManifest = contextManifest ??
+    liveTurn?.contextManifest ??
+    visibleTurns.findLast((turn) => turn.contextManifest)?.contextManifest ??
+    null;
   const latestTurnState = visibleTurns.at(-1)?.sessionState ?? null;
   const lastContextState = [sessionState, liveTurn?.sessionState, ...visibleTurns.toReversed().map((turn) => turn.sessionState)]
     .find((state) => state?.contextUsed != null || state?.contextSize != null) ?? null;
@@ -1406,6 +1419,25 @@ function ClaudeWorkbench({
   const contextPercent = contextUsed != null && contextSize
     ? Math.max(0, Math.min(100, Math.round((contextUsed / contextSize) * 100)))
     : null;
+  const contextIsReported = effectiveSessionState?.contextUsed != null;
+  const visibleContributions = effectiveContextManifest?.contributions.filter(
+    (contribution) => contribution.characters > 0
+  ) ?? [];
+
+  function closeContextInspector(): void {
+    setContextInspectorOpen(false);
+    requestAnimationFrame(() => contextButtonRef.current?.focus());
+  }
+
+  useEffect(() => {
+    if (!contextInspectorOpen) return;
+    requestAnimationFrame(() => contextCloseRef.current?.focus());
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") closeContextInspector();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [contextInspectorOpen]);
 
   useEffect(() => {
     if (!working) return;
@@ -1475,16 +1507,20 @@ function ClaudeWorkbench({
           <strong>Session:</strong>
           <span className="claude-session-name">{projectName.toLocaleLowerCase().replace(/\s+/g, "-")} · {visibleTurns.at(-1)?.id.slice(0, 8) ?? "ready"}</span>
         </div>
-        <span
+        <button
+          ref={contextButtonRef}
+          type="button"
           className={`claude-context-meter${contextUsed == null ? " is-waiting" : ""}`}
           aria-label={contextPercent == null ? "Context usage waiting" : `Context ${contextPercent}%`}
+          aria-expanded={contextInspectorOpen}
+          onClick={() => setContextInspectorOpen(true)}
           title={contextUsed != null
             ? contextSize
               ? `${contextUsed.toLocaleString()} of ${contextSize.toLocaleString()} context tokens used`
               : `${contextUsed.toLocaleString()} context tokens used`
             : "Context usage appears as soon as Claude reports it"}
         >
-            <span>Context window</span>
+            <span>{contextIsReported ? "Context window" : "Session tokens"}</span>
             <strong>
               {contextUsed == null
                 ? "Waiting for Claude"
@@ -1493,7 +1529,7 @@ function ClaudeWorkbench({
                   : `${formatTokenCount(contextUsed)} used`}
             </strong>
             <i style={{ "--context-fill": `${contextPercent ?? 0}%` } as CSSProperties} />
-        </span>
+        </button>
         <div className="claude-session-meta">
           <span className="managed-session-chip">{makerSessionModelLabel(effectiveSessionState)}</span>
           <span className={`managed-session-chip is-mode is-${effectiveSessionState?.modeId ?? "default"}`}>{makerModeLabel(effectiveSessionState)}</span>
@@ -1528,6 +1564,101 @@ function ClaudeWorkbench({
           ) : null}
         </div>
       </header>
+
+      {contextInspectorOpen ? (
+        <div className="context-inspector-layer" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeContextInspector();
+        }}>
+          <section className="context-inspector-panel" role="dialog" aria-modal="true" aria-labelledby="context-inspector-title" onKeyDown={(event) => {
+            if (event.key !== "Tab") return;
+            const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>("button, summary, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")]
+              .filter((element) => !element.hasAttribute("disabled"));
+            const first = focusable[0];
+            const last = focusable.at(-1);
+            if (!first || !last) return;
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }}>
+            <header>
+              <div>
+                <p className="eyebrow">Session context</p>
+                <h3 id="context-inspector-title">What Hearth can actually prove</h3>
+              </div>
+              <button ref={contextCloseRef} type="button" aria-label="Close context inspector" onClick={closeContextInspector}>×</button>
+            </header>
+            <div className="context-inspector-reported">
+              <article>
+                <span>Provider reported</span>
+                <strong>{effectiveSessionState?.contextUsed == null
+                  ? "Not reported"
+                  : effectiveSessionState.contextSize
+                    ? `${formatTokenCount(effectiveSessionState.contextUsed)} / ${formatTokenCount(effectiveSessionState.contextSize)}`
+                    : `${formatTokenCount(effectiveSessionState.contextUsed)} tokens`}</strong>
+                <small>{effectiveSessionState?.contextSize && contextPercent != null
+                  ? `${contextPercent}% of Claude's reported window`
+                  : "Hearth won't invent a window size."}</small>
+              </article>
+              <article>
+                <span>Hearth supplied this turn</span>
+                <strong>{effectiveContextManifest
+                  ? `${effectiveContextManifest.promptCharacters.toLocaleString()} characters`
+                  : "Not recorded"}</strong>
+                <small>{effectiveContextManifest
+                  ? effectiveContextManifest.continuingSession
+                    ? "Resumed Claude session · new material only"
+                    : "Fresh Claude session · includes the full Maker frame"
+                  : "Earlier turns predate the local manifest."}</small>
+              </article>
+            </div>
+            <div className="context-inspector-breakdown">
+              <div className="context-inspector-heading">
+                <strong>Local contribution manifest</strong>
+                <span>Characters, not token guesses</span>
+              </div>
+              {visibleContributions.length ? visibleContributions.map((contribution) => (
+                <article key={contribution.kind}>
+                  <div>
+                    <strong>{contribution.label}</strong>
+                    <span>{contribution.characters.toLocaleString()}{contribution.truncated ? " · bounded" : ""}</span>
+                  </div>
+                  <i style={{
+                    "--manifest-fill": `${Math.max(3, Math.round((contribution.characters / Math.max(1, effectiveContextManifest?.promptCharacters ?? 1)) * 100))}%`
+                  } as CSSProperties} />
+                  <small>{contribution.detail}</small>
+                </article>
+              )) : <p>No per-turn manifest is available for this older workstream yet.</p>}
+            </div>
+            {effectiveContextManifest?.preservedUserTail.length ? (
+              <details className="context-inspector-tail">
+                <summary>Recent directions Hearth still has locally</summary>
+                <div>
+                  {effectiveContextManifest.preservedUserTail.map((item, index) => (
+                    <article key={`${item.createdAt}-${index}`}>
+                      <span>{item.sentAsRecentContext ? "Sent this turn" : "Local record only"}</span>
+                      <p>{item.text}</p>
+                    </article>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+            <footer>
+              <p>Claude’s number describes provider-side session use. Hearth’s manifest describes only the bounded material Hearth assembled locally; it does not claim access to hidden provider prompts, compaction, or private buffers.</p>
+              {contextPercent != null && contextPercent >= 70 ? (
+                <div className="context-inspector-actions">
+                  <button type="button" onClick={closeContextInspector}>Keep working</button>
+                  <button type="button" onClick={() => { closeContextInspector(); onPrepareReturnPack(); }}>Prepare Return Pack</button>
+                  <button type="button" onClick={() => { closeContextInspector(); void onStartFresh(); }}>Start fresh session</button>
+                </div>
+              ) : null}
+            </footer>
+          </section>
+        </div>
+      ) : null}
 
       <div
         className="claude-transcript"
@@ -1913,11 +2044,13 @@ export function WorkshopRoom({
   sessionState,
   turnHealth,
   turnUsage,
+  contextManifest,
   permissions,
   working,
   onResolvePermission,
   onCancelAgent,
   onStartFresh,
+  onPrepareReturnPack,
   proposal,
   onUpdateProposal,
   onDiscardProposal,
@@ -1950,11 +2083,13 @@ export function WorkshopRoom({
   sessionState: MakerSessionState | null;
   turnHealth: WorkshopTurnHealth | null;
   turnUsage: WorkshopTurnUsage | null;
+  contextManifest: WorkshopContextManifest | null;
   permissions: MakerPermissionRequest[];
   working: boolean;
   onResolvePermission: (permissionId: string, optionId: string) => Promise<void>;
   onCancelAgent: () => Promise<void>;
   onStartFresh: () => Promise<void>;
+  onPrepareReturnPack: () => void;
   proposal: MakerProposal | null;
   onUpdateProposal: (proposalId: string, instruction: string) => Promise<void>;
   onDiscardProposal: (proposalId: string) => Promise<void>;
@@ -2221,6 +2356,7 @@ export function WorkshopRoom({
             sessionState={sessionState}
             turnHealth={turnHealth}
             turnUsage={turnUsage}
+            contextManifest={contextManifest}
             permissions={permissions}
             messages={data.conversations.maker}
             working={working && Boolean(workRequestId)}
@@ -2229,6 +2365,7 @@ export function WorkshopRoom({
             onConfigureSession={onConfigureSession}
             onCancel={onCancelAgent}
             onStartFresh={onStartFresh}
+            onPrepareReturnPack={onPrepareReturnPack}
             onResolvePermission={onResolvePermission}
             initialDraft={initialDraft}
           />

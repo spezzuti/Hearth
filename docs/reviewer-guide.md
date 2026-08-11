@@ -53,7 +53,9 @@ variable.
 3. Ask Maker to inspect the repository and make a small, testable change.
 4. Observe the plan, tool activity, diff, mode, effort, permissions, and token state in the main
    workstream while Maker keeps the right-hand conversation brief.
-5. While Maker is still working, type a replacement direction and send it. The active turn should
+5. Open the context meter. Compare Claude's reported session use with Hearth's per-turn local
+   manifest, then inspect which recent user directions were sent versus only preserved locally.
+6. While Maker is still working, type a replacement direction and send it. The active turn should
    become **Interrupted** and the new direction should continue in the same project session.
 
 ### Independent review
@@ -80,6 +82,7 @@ variable.
 | Real persistent ConPTY | `src/core/terminal.ts` | terminal-state unit tests and three terminal E2E scenarios |
 | Project-scoped Claude ACP continuity | `src/core/claude-acp-runtime.ts` | `tests/unit/managed-maker.test.ts`, packaged smoke |
 | Activity-aware turn health and failure fate | `src/core/claude-acp-runtime.ts` | managed-maker unit tests and packaged health drill |
+| Truthful per-turn context manifest | `src/core/agent-provider.ts`, `src/core/store.ts` | agent-provider/store unit tests and Workshop Electron scenario |
 | Safe active-turn interruption | `src/core/claude-acp-runtime.ts`, `src/core/core.ts` | deterministic interruption unit test and optional real-provider packaged smoke |
 | Independent Critic routing | `src/core/codex-acp-runtime.ts`, `src/core/agent-provider.ts` | provider unit tests and packaged smoke |
 | Bounded shared-room orchestration | `src/core/living-room.ts` | Living Room unit and Electron tests |
@@ -96,7 +99,7 @@ npm run package:dir
 npm run test:packaged:health
 ```
 
-The complete `npm run verify` gate runs the first three. On the current release, that is 109 unit tests and
+The complete `npm run verify` gate runs the first three. On the current release, that is 110 unit tests and
 13 serial Electron scenarios. The E2E suite creates synthetic repositories and isolated application
 data; it does not use the reviewer's personal Hearth database.
 

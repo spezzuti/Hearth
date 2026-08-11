@@ -1802,6 +1802,20 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(running.page.locator(".claude-composer-context")).toHaveCount(0);
       await expect(running.page.locator(".claude-context-meter")).toHaveCount(1);
       await expect(running.page.locator(".claude-context-meter")).toContainText("Context window31.4k / 100k · 31%");
+      await running.page.locator(".claude-context-meter").click();
+      const contextInspector = running.page.getByRole("dialog", { name: "What Hearth can actually prove" });
+      await expect(contextInspector).toBeVisible();
+      const closeContextInspector = running.page.getByRole("button", { name: "Close context inspector" });
+      await expect(closeContextInspector).toBeFocused();
+      await expect(contextInspector).toContainText("Provider reported");
+      await expect(contextInspector).toContainText("31.4k / 100k");
+      await expect(contextInspector).toContainText("Hearth supplied this turn");
+      await expect(contextInspector).toContainText("Current direction");
+      await expect(contextInspector).toContainText("Characters, not token guesses");
+      await expect(contextInspector).toContainText("does not claim access to hidden provider prompts");
+      await running.page.keyboard.press("Escape");
+      await expect(contextInspector).toHaveCount(0);
+      await expect(running.page.locator(".claude-context-meter")).toBeFocused();
       await expect(running.page.getByRole("button", { name: "Planning" })).toHaveAttribute("title", "Manual → Auto → Planning");
       await expect(running.page.getByLabel("Effort level")).toHaveValue("xhigh");
       await expect(running.page.getByLabel("Effort level").locator("option")).toHaveText(["Low", "Medium", "High", "XHigh"]);
@@ -1870,6 +1884,36 @@ test.describe.serial("continuity vertical slice", () => {
         makerContained: true,
         composerContained: true
       });
+      await running.page.locator(".claude-context-meter").click();
+      await expect(contextInspector).toBeVisible();
+      const compactInspectorBounds = await contextInspector.evaluate((panel) => {
+        const workbench = panel.closest<HTMLElement>(".claude-workbench");
+        const workbenchBounds = workbench?.getBoundingClientRect();
+        const panelBounds = panel.getBoundingClientRect();
+        return {
+          horizontallyContained: Boolean(
+            workbenchBounds &&
+            panelBounds.left >= workbenchBounds.left - 1 &&
+            panelBounds.right <= workbenchBounds.right + 1
+          ),
+          verticallyContained: Boolean(
+            workbenchBounds &&
+            panelBounds.top >= workbenchBounds.top - 1 &&
+            panelBounds.bottom <= workbenchBounds.bottom + 1
+          ),
+          contentContained: panel.scrollWidth <= panel.clientWidth + 1
+        };
+      });
+      expect(compactInspectorBounds).toEqual({
+        horizontallyContained: true,
+        verticallyContained: true,
+        contentContained: true
+      });
+      await running.page.screenshot({
+        path: path.join(screenshotDirectory, "context-inspector-compact.png"),
+        fullPage: true
+      });
+      await running.page.keyboard.press("Escape");
       await running.page.screenshot({
         path: path.join(screenshotDirectory, "managed-workshop-unified-compact.png"),
         fullPage: true

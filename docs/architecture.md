@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.49.1 implementation. It is an implementation map, not a
+This document describes the current 0.50.0 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model
@@ -77,14 +77,17 @@ Hearth does not invent an underlying Codex model when the adapter does not discl
 1. The user selects a discovered project.
 2. Core resolves and revalidates the canonical project root.
 3. Maker opens or resumes a project-scoped Claude ACP session.
-4. ACP events become visible plans, thoughts, tool activities, diffs, permissions, modes, effort,
+4. Before sending, core records a bounded context manifest: the exact assembled prompt character
+   count, contribution sizes, truncation boundaries, fresh/resumed state, and recent user tail.
+   This is local accounting and is never presented as provider token use.
+5. ACP events become visible plans, thoughts, tool activities, diffs, permissions, modes, effort,
    and token usage.
-5. Provider and tool events renew an idle deadline while a separate two-hour safety ceiling bounds
+6. Provider and tool events renew an idle deadline while a separate two-hour safety ceiling bounds
    one turn. The persisted health record contains timestamps, process/connection state, failure
    class, fate, and retry safety—never raw provider output.
-6. The complete technical stream stays in Workshop; Maker's side conversation provides the brief
+7. The complete technical stream stays in Workshop; Maker's side conversation provides the brief
    human interpretation.
-7. Core persists bounded turn summaries and session identity, not raw PTY output.
+8. Core persists bounded turn summaries and session identity, not raw PTY output.
 
 Provider Doctor reads the same runtime-owned state. It reports adapter and executable discovery,
 auth confidence, ACP handshake/process/session state, last success, and the last bounded error. It
@@ -134,7 +137,7 @@ SQLite WAL stores:
 - resident and Living Room conversations;
 - captures, collections, idea decisions, notes, and Archive state;
 - approved House Memory and dismissed suggestions;
-- managed Workshop summaries, plans, activities, token state, and session identity;
+- managed Workshop summaries, plans, activities, token state, context manifests, and session identity;
 - Return Packs and bounded execution reports;
 - edit recovery metadata and private backup references.
 

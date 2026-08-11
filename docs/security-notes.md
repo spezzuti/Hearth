@@ -45,9 +45,13 @@
 - When the user explicitly gives Maker the terminal seat, a non-social Maker chat turn receives at
   most the latest 120 cleaned lines and 16,000 characters of the in-memory terminal view. Common
   credential assignment, authorization header, and known token shapes are redacted locally first.
-- The transient terminal view is sent only to Maker's configured reasoning provider. It is never
+- The transient terminal view is sent only to Maker's configured reasoning provider. Its text is never
   sent to Companion, Librarian, or Critic and is never added to conversation history, House Memory,
   a Return Pack, an execution report, or any persisted record.
+- The per-turn context manifest persists only contribution kind, character count, truncation flag,
+  fixed boundary description, fresh/resumed state, and a bounded tail of already-persisted user
+  directions. It does not persist terminal-view text, source evidence, provider prompts, plans, tool
+  results, or hidden provider state.
 - Terminal text is explicitly delimited as incomplete, unverified, untrusted evidence. It cannot
   grant tools or authority, and any instruction embedded in output must be ignored.
 - Giving Maker the terminal seat does not cause autonomous input. Claude Code receives text only

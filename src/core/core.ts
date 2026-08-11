@@ -16,7 +16,8 @@ import {
   localMakerProposal,
   localProjectEditCritique,
   localProjectEditProposal,
-  residentInterruptionReply
+  residentInterruptionReply,
+  buildManagedMakerPromptContext
 } from "./agent-provider";
 import { isCasualSocialTurn } from "./conversation-intent";
 import { enrichLink } from "./link-metadata";
@@ -353,24 +354,10 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
           provider.snapshot().active === "claude-code";
         const managedWorkshop =
           request.payload.agent === "maker" && request.payload.surface === "workshop";
+        const resumeSessionId = managedWorkshop
+          ? store.getMakerContinuationSession(selectedRootPath)
+          : null;
         const workshopStartedAt = new Date().toISOString();
-        if (managedWorkshop) {
-          store.startWorkshopTurn(
-            request.id,
-            conversationScope,
-            request.payload.text,
-            workshopStartedAt
-          );
-        }
-        if (providerWasActive || managedWorkshop) {
-          emitAgentEvent({
-            type: "started",
-            agent: request.payload.agent,
-            requestId: request.id,
-            prompt: managedWorkshop ? request.payload.text : undefined,
-            startedAt: managedWorkshop ? workshopStartedAt : undefined
-          });
-        }
         let reasoning;
         try {
           const reasoningRequest = {
@@ -403,6 +390,30 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
                   ? store.getActiveMakerProposal()?.executionResult ?? null
                   : null
             };
+          let contextManifest;
+          if (managedWorkshop) {
+            contextManifest = buildManagedMakerPromptContext(
+              reasoningRequest,
+              Boolean(resumeSessionId)
+            ).manifest;
+            store.startWorkshopTurn(
+              request.id,
+              conversationScope,
+              request.payload.text,
+              contextManifest,
+              workshopStartedAt
+            );
+          }
+          if (providerWasActive || managedWorkshop) {
+            emitAgentEvent({
+              type: "started",
+              agent: request.payload.agent,
+              requestId: request.id,
+              prompt: managedWorkshop ? request.payload.text : undefined,
+              startedAt: managedWorkshop ? workshopStartedAt : undefined,
+              contextManifest
+            });
+          }
           const emitDelta = (text: string) => {
               emitAgentEvent({
                 type: "delta",
@@ -501,9 +512,7 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
                     }
                   },
                   {
-                    resumeSessionId: store.getMakerContinuationSession(
-                      selectedRootPath
-                    ),
+                    resumeSessionId,
                     interruptActive: true,
                     onSessionReady: (sessionId) =>
                       store.saveManagedMakerSession(

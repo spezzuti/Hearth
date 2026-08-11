@@ -5,6 +5,7 @@ import {
   agentStreamDelta,
   buildAgentInvocation,
   buildManagedMakerPrompt,
+  buildManagedMakerPromptContext,
   buildAgentPrompt,
   localMakerProposal,
   localProjectEditCritique,
@@ -364,6 +365,50 @@ describe("bounded agent provider prompt", () => {
     expect(continuing).not.toContain("Maker: Keep the change narrow.");
     expect(continuing).toContain("CURRENT USER MESSAGE\nWhat should I do next?");
     expect(continuing.length).toBeLessThan(initial.length);
+  });
+
+  it("accounts for Hearth's bounded managed prompt without calling local characters provider tokens", () => {
+    const withUserHistory = request({
+      history: [
+        {
+          id: "user-1",
+          agent: "maker",
+          role: "user",
+          text: "Check the state transition first.",
+          createdAt: "2026-08-11T10:00:00.000Z"
+        },
+        {
+          id: "assistant-1",
+          agent: "maker",
+          role: "assistant",
+          text: "Yeah, that's the suspicious bit.",
+          createdAt: "2026-08-11T10:01:00.000Z"
+        }
+      ],
+      houseMemory: "Prefer the smallest testable change.",
+      terminalEvidence: "npm test\n109 tests passed"
+    });
+    const fresh = buildManagedMakerPromptContext(withUserHistory, false);
+    expect(fresh.manifest.promptCharacters).toBe(fresh.prompt.length);
+    expect(
+      fresh.manifest.contributions.reduce((total, contribution) => total + contribution.characters, 0)
+    ).toBe(fresh.prompt.length);
+    expect(fresh.manifest.contributions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "project_evidence", characters: expect.any(Number) }),
+      expect.objectContaining({ kind: "terminal_view", characters: expect.any(Number) }),
+      expect.objectContaining({ kind: "house_memory", characters: 36 })
+    ]));
+    expect(fresh.manifest.preservedUserTail).toEqual([
+      expect.objectContaining({ text: "Check the state transition first.", sentAsRecentContext: true })
+    ]);
+
+    const continuing = buildManagedMakerPromptContext(withUserHistory, true);
+    expect(continuing.manifest.continuingSession).toBe(true);
+    expect(continuing.manifest.contributions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "recent_conversation", characters: 0 }),
+      expect.objectContaining({ kind: "house_memory", characters: 0 })
+    ]));
+    expect(continuing.manifest.preservedUserTail[0]?.sentAsRecentContext).toBe(false);
   });
 
   it("shares only approved bounded House Memory without expanding resident authority", () => {

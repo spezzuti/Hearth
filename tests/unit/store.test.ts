@@ -346,7 +346,19 @@ describe("HearthStore continuity contract", () => {
     const store = await HearthStore.open(dataDirectory, workspace.rootPath);
     const requestId = "turn-workshop-one";
 
-    store.startWorkshopTurn(requestId, workspace, "Find the race and prove the fix.", "2026-08-01T12:00:00.000Z");
+    store.startWorkshopTurn(requestId, workspace, "Find the race and prove the fix.", {
+      continuingSession: false,
+      promptCharacters: 420,
+      contributions: [{
+        kind: "current_direction",
+        label: "Current direction",
+        characters: 33,
+        truncated: false,
+        detail: "Your current Workshop message, supplied in full."
+      }],
+      preservedUserTail: [],
+      capturedAt: "2026-08-01T12:00:00.000Z"
+    }, "2026-08-01T12:00:00.000Z");
     store.recordWorkshopActivity(requestId, {
       id: "tool-read",
       kind: "read",
@@ -409,7 +421,8 @@ describe("HearthStore continuity contract", () => {
         plan: [{ status: "completed" }, { status: "in_progress" }],
         sessionState: { modeId: "plan", contextUsed: 31_400 },
         health: { state: "working", connection: "connected" },
-        usage: { model: "Claude Opus 5", outputTokens: 3_400 }
+        usage: { model: "Claude Opus 5", outputTokens: 3_400 },
+        contextManifest: { promptCharacters: 420, continuingSession: false }
       }
     ]);
     expect(store.getAgentConversation("maker", workspace)).toHaveLength(0);
@@ -425,7 +438,8 @@ describe("HearthStore continuity contract", () => {
       status: "completed",
       activities: [{ title: "Read protocol flow" }],
       health: { lastToolEventAt: "2026-08-01T12:00:01.000Z" },
-      usage: { estimatedPromptCharacters: 31 }
+      usage: { estimatedPromptCharacters: 31 },
+      contextManifest: { contributions: [{ kind: "current_direction" }] }
     });
     reopened.close();
   });

@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.49.1. It records the Phase 1 turn-health and
-Provider Doctor work completed and live-packaged on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.50.0. It records the Phase 2 context inspector
+and durable continuity work completed and verified on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -37,10 +37,36 @@ and explicit milestone records resume with 0.48.0:
 | 0.47.2 | Living Room conversations, pressure tests, handoffs, and managed Workshop interruption are integrated. |
 | 0.48.0 | Dependency trust baseline, isolated runtime upgrades, Windows CI, and truthful provider identity. |
 | 0.49.0 | Activity-aware managed turns, explicit recovery fate, per-turn usage, and Provider Doctor. |
-| 0.49.1 current | Long-tool health renewal, truthful adapter-loss state, permission cleanup, and a repeatable packaged health drill. |
+| 0.49.1 | Long-tool health renewal, truthful adapter-loss state, permission cleanup, and a repeatable packaged health drill. |
+| 0.50.0 current | Persisted per-turn context manifests, provider/local accounting separation, and threshold-aware continuity choices. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
+
+## Phase 2 outcome
+
+### Honest context inspector
+
+- The Workshop context meter is now an accessible button that opens a contained inspector rather
+  than presenting one unexplained aggregate.
+- Claude-reported context use and window size remain provider facts. Hearth's separate local
+  manifest records exact prompt characters and never converts them into guessed tokens.
+- Every new managed turn persists its bounded contributions: Hearth framing, current direction,
+  recent conversation, explicit project evidence, terminal view, execution report, and approved
+  House Memory. Each contribution records truncation truth and a plain-language boundary.
+- Fresh and resumed sessions are explicit. On a resumed session, Hearth shows that prior
+  conversation and House Memory were not resent because Claude carries its own provider-side
+  history.
+
+### Durable choices
+
+- The manifest preserves a bounded recent user-direction tail and marks whether each direction was
+  sent as recent context or retained only in Hearth's local record.
+- At 70% or more of a provider-reported context window, the inspector offers three deliberate
+  choices: keep working, prepare a Return Pack, or retire the continuation pointer and start fresh.
+- ACP does not currently expose a reliable compaction event or hidden prompt breakdown. Hearth says
+  so directly rather than inventing one; plans and tool results remain visible in the canonical
+  workstream but are not mislabeled as material Hearth supplied.
 
 ## Phase 1 outcome
 
@@ -120,22 +146,17 @@ became interrupted, the permission queue was empty, and the unapproved file was 
 This proves the state transitions and cleanup path under compressed test timings. The production
 two-hour absolute ceiling is intentionally not waited out in automation.
 
-## Next engineering findings
-
-### Context visibility is aggregate
-
-Workshop accurately exposes reported token totals and context use, but the counter cannot explain
-what is occupying the window. Hearth should distinguish provider-reported totals from local
-estimates and show the bounded material it supplied: current direction, recent conversation,
-project evidence, tool results, plans, and approved memory. It must not claim access to hidden
-provider prompt construction that ACP does not expose.
-
 ## Current quality signal
 
-- Type checking, 109 unit tests across 15 files, the production build, and all 13 serial Electron
-  scenarios pass for 0.49.1. The packaged live baseline and health drill also pass.
-- The 0.49.1 Electron run exercised continuity, containment, real ConPTY behavior, handoffs, Living Room,
+- Type checking, 110 unit tests across 15 files, the production build, and all 13 serial Electron
+  scenarios pass for 0.50.0. The rebuilt 0.50.0 Claude/Codex packaged baseline also passes; the
+  0.49.1 destructive health drill remains the latest runtime-failure evidence.
+- The 0.50.0 Electron run exercised context inspection, migration persistence, compact containment,
+  continuity, containment, real ConPTY behavior, handoffs, Living Room,
   project-scoped conversations, reload/relaunch, and responsive layouts.
+- Project discovery and edit recovery now compare canonical Windows paths, so short-path aliases such
+  as `RUNNER~1` cannot make Hearth reject its own bounded recovery files. Project tests also close
+  SQLite handles before removing their isolated workspaces.
 - The current rebuilt package passed both the local ConPTY smoke and the optional live Claude/Codex
   ACP smoke. Those remain required whenever provider, interruption, context, or permissions change.
 

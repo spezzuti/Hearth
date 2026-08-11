@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.49.1 implementation described in
+This roadmap starts from the real Hearth 0.50.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -99,22 +99,27 @@ the implementation. The packaged live drill kept a known tool healthy beyond a c
 deadline, recorded non-replayed adapter loss, and proved a pending write was not performed across
 close and relaunch.
 
-## Phase 2 — context inspector and durable continuity
+## Phase 2 — context inspector and durable continuity delivered in 0.50.0
 
 This extends the existing Workshop counter rather than inventing a second context system.
 
-- Make the context meter open a compact inspector.
-- Show provider-reported context use and locally measured contributions separately.
-- Break down only material Hearth can prove it supplied: current instruction, visible recent turns,
-  project evidence, approved House Memory, tool summaries, plans, and handoff context.
-- Record visible compaction/resume events and the recent user-message tail preserved by Hearth.
-- Offer **continue**, **start fresh**, and **prepare a Return Pack** choices at meaningful thresholds;
-  do not auto-reset a working session.
-- Keep raw project contents, terminal output, hidden prompts, and provider-private buffers out of the
-  inspector and database.
+- The context meter opens a contained, keyboard-dismissable inspector.
+- Provider-reported tokens/window size and Hearth's character-exact local manifest are visually and
+  semantically separate.
+- The persisted manifest covers Hearth framing, the current direction, recent conversation,
+  explicit project evidence, bounded terminal view, execution report, and approved memory. It also
+  records truncation boundaries without persisting raw terminal output or arbitrary project files.
+- Fresh versus resumed Claude sessions are explicit. A bounded recent user tail shows which
+  directions were resent and which remain local continuity only.
+- At 70% or more of a reported window, the inspector offers **keep working**, **start fresh**, and
+  **prepare a Return Pack**. Hearth never resets automatically.
+- ACP currently exposes no reliable compaction event or hidden provider prompt breakdown. The
+  inspector states that limitation and does not misclassify provider-generated plans or tool results
+  as Hearth-supplied material.
 
-**Exit:** the user can tell why a session is getting full, what Hearth knows will survive, and which
-numbers are reported versus estimated.
+**Exit met:** the user can tell what Claude reported, what Hearth supplied this turn, what Hearth
+will retain locally, and which continuity choices are available without confusing characters for
+tokens or claiming visibility into provider-private state.
 
 ## Phase 3 — grounded Library and project references
 
