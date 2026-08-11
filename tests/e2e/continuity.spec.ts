@@ -1458,8 +1458,13 @@ test.describe.serial("continuity vertical slice", () => {
         .getByRole("button", { name: /Review Project/ })
         .click();
       await expect(
-        running.page.getByText("A real project fixture for Hearth's calm review surface.")
+        running.page.locator(".project-title").getByRole("heading", {
+          name: "Review Project"
+        })
       ).toBeVisible();
+      await expect(
+        running.page.locator(".project-inspector")
+      ).toContainText("A real project fixture for Hearth's calm review surface.");
 
       await running.page
         .locator(".directory-list")
