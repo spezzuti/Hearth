@@ -1409,16 +1409,14 @@ test.describe.serial("continuity vertical slice", () => {
         running.page.getByText(/I think this has legs/i)
       ).toBeVisible();
       await running.page.screenshot({
-        path: path.join(screenshotDirectory, "studio-development.png"),
-        fullPage: true
+        path: path.join(screenshotDirectory, "studio-development.png")
       });
       await running.page.getByRole("tab", { name: "Make it a project" }).click();
       await running.page.getByRole("button", { name: "New project" }).click();
       await expect(running.page.getByText(/Hearth Projects/)).toBeVisible();
       await expect(running.page.getByLabel("Project name")).not.toHaveValue(/\.$/);
       await running.page.screenshot({
-        path: path.join(screenshotDirectory, "studio-new-project.png"),
-        fullPage: true
+        path: path.join(screenshotDirectory, "studio-new-project.png")
       });
       await running.page.getByRole("button", { name: "Existing project" }).click();
       const projectSelect = running.page.getByLabel("Connect to");
@@ -1427,8 +1425,7 @@ test.describe.serial("continuity vertical slice", () => {
       });
       await projectSelect.selectOption(await reviewOption.getAttribute("value") ?? "");
       await running.page.screenshot({
-        path: path.join(screenshotDirectory, "studio-promotion.png"),
-        fullPage: true
+        path: path.join(screenshotDirectory, "studio-promotion.png")
       });
       await running.page.getByRole("button", { name: "Connect idea" }).click();
       await expect(
