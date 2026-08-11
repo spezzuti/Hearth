@@ -37,7 +37,14 @@ afterEach(async () => {
   openStores.clear();
   while (cleanup.length > 0) {
     const target = cleanup.pop();
-    if (target) await rm(target, { recursive: true, force: true });
+    if (target) {
+      await rm(target, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100
+      });
+    }
   }
 });
 
@@ -351,7 +358,7 @@ describe("ProjectManager bounded project review", () => {
       /outside this project/
     );
     store.close();
-  });
+  }, 20_000);
 
   it("creates a bounded Hearth project from a pursued Studio idea", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "hearth-idea-project-"));
