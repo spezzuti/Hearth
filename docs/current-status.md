@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.54.0. It records the connected Study and
-Workshop furnishing pass completed and verified on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.55.0. It records the Library and Studio
+furnishing pass completed and verified on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -42,7 +42,8 @@ and explicit milestone records resume with 0.48.0:
 | 0.51.0 | Typed canonical references, bounded public metadata, calm cross-room source cards, and Librarian citation rules. |
 | 0.52.0 | Supervised House Practices with evidence, provenance, explicit effects, scoped approval, and frozen decisions. |
 | 0.53.0 | Shared visual-language foundation and a fully furnished, compact-safe Home surface. |
-| 0.54.0 current | Connected Study and Workshop identities with compact-safe session controls. |
+| 0.54.0 | Connected Study and Workshop identities with compact-safe session controls. |
+| 0.55.0 current | Furnished Library and Studio identities with compact-safe resident and creative surfaces. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
@@ -66,6 +67,12 @@ resume explicit milestone records or maintain a changelog so the public history 
   remain unchanged.
 - Compact Workshop explicitly proves the Context meter and right-side session controls do not
   overlap in addition to the existing document, workbench, Maker, and composer containment checks.
+- Library now balances shelf, paper, reading light, and green reference materials while keeping its
+  filters, collections, sorting, discovery, and item actions visually stable. Librarian's portrait
+  and desk surface have greater presence without reducing chat readability.
+- Studio now carries a brighter loft/worktable identity across both Ideas and Notes. Drafting-grid
+  structure, ruled capture paper, status-colored counters, card shadows, and restrained tape details
+  add creative energy without changing capture, pursuit, dismissal, discussion, or promotion.
 
 ## Phase 4 outcome
 
