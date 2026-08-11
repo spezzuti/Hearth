@@ -2755,11 +2755,12 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(makerProvider).toContainText(
         new RegExp(providerLabel.split(/\s+/).join("\\s*"))
       );
+      const providerState = providerLabel === "Hearth local" ? "local" : "online";
       await expect(
         running.page.locator(".maker-status")
-      ).toHaveAttribute("aria-label", `${providerLabel} · online`);
+      ).toHaveAttribute("aria-label", `${providerLabel} · ${providerState}`);
       await expect(running.page.locator(".maker-status")).toHaveClass(
-        /maker-status--online/
+        providerState === "online" ? /maker-status--online/ : /^maker-status$/
       );
       for (const size of [
         { width: 1440, height: 900 },
