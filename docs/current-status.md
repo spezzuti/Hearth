@@ -157,6 +157,8 @@ two-hour absolute ceiling is intentionally not waited out in automation.
 - Project discovery and edit recovery now compare canonical Windows paths, so short-path aliases such
   as `RUNNER~1` cannot make Hearth reject its own bounded recovery files. Project tests also close
   SQLite handles before removing their isolated workspaces.
+- A stopped terminal can be reopened from the always-visible footer, so compact Workshop layouts do
+  not depend on the hidden session shelf to start a fresh PowerShell session.
 - The current rebuilt package passed both the local ConPTY smoke and the optional live Claude/Codex
   ACP smoke. Those remain required whenever provider, interruption, context, or permissions change.
 

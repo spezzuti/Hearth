@@ -1707,8 +1707,7 @@ test.describe.serial("continuity vertical slice", () => {
 
       await running.page.getByRole("button", { name: "Terminal", exact: true }).click();
       await running.page
-        .getByRole("button", { name: /Windows PowerShell/ })
-        .first()
+        .getByRole("button", { name: /^Open .*PowerShell/ })
         .click();
       await expect
         .poll(async () => {
@@ -2826,8 +2825,7 @@ test.describe.serial("continuity vertical slice", () => {
 
       await running.page.getByRole("button", { name: "Terminal", exact: true }).click();
       await running.page
-        .getByRole("button", { name: /Windows PowerShell/ })
-        .first()
+        .getByRole("button", { name: /^Open .*PowerShell/ })
         .click();
       const terminal = running.page.locator(".terminal-host");
       await expect(terminal).toBeVisible();
@@ -3136,8 +3134,7 @@ test.describe.serial("continuity vertical slice", () => {
       .click();
     await running.page.getByRole("button", { name: "Terminal", exact: true }).click();
     await running.page
-      .getByRole("button", { name: /Windows PowerShell/ })
-      .first()
+      .getByRole("button", { name: /^Open .*PowerShell/ })
       .click();
     await expect
       .poll(async () => {

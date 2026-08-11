@@ -6093,6 +6093,27 @@ button.room-link:not(.is-disabled):hover {
   white-space: nowrap;
 }
 
+.terminal-footer button {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  color: #c8bbb1;
+  font: inherit;
+  background: #252027;
+  border: 1px solid #413740;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.terminal-footer button:hover {
+  color: #eee4dc;
+  border-color: #675663;
+}
+
+.terminal-footer button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .workshop-maker {
   position: relative;
   display: grid;

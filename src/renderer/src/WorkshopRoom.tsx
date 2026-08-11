@@ -2476,6 +2476,15 @@ export function WorkshopRoom({
                 ? `${session.cols} × ${session.rows} · PID ${session.pid ?? "stopped"}`
                 : "ConPTY ready"}
             </span>
+            {session && !isLive ? (
+              <button
+                type="button"
+                onClick={() => void start("powershell")}
+                disabled={busy}
+              >
+                Open {data.terminal.capabilities.shellName}
+              </button>
+            ) : null}
             <span>Ctrl+Shift+C/V · Ctrl+click links · output is not saved to memory</span>
           </footer>
         </section>}
