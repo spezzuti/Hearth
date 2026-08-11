@@ -38,6 +38,19 @@ const MAX_WORK_DETAIL_CHARACTERS = 20_000;
 const MAX_COMPACT_INPUT_CHARACTERS = 1_200;
 const MAX_DIFF_SIDE_CHARACTERS = 32_000;
 
+export interface ClaudeAcpRuntimeTiming {
+  idleTimeoutMs?: number;
+  absoluteTimeoutMs?: number;
+  quietAfterMs?: number;
+  permissionTimeoutMs?: number;
+}
+
+function boundedTestTiming(name: string, fallback: number): number {
+  if (process.env.HEARTH_RUNTIME_TEST_TIMING !== "1") return fallback;
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 250 ? Math.floor(value) : fallback;
+}
+
 export type ManagedMakerRuntimeEvent =
   | { type: "delta"; text: string }
   | { type: "reply_boundary" }
@@ -56,6 +69,7 @@ interface ActiveTurn {
   replySegments: string[];
   sawToolCall: boolean;
   mutationObserved: boolean;
+  activeToolIds: Set<string>;
   onEvent: (event: ManagedMakerRuntimeEvent) => void;
   finished: Promise<void>;
   resolveFinished: () => void;
@@ -535,9 +549,17 @@ export class ClaudeAcpRuntime {
   private lastHandshakeAt: string | null = null;
   private lastSuccessAt: string | null = null;
   private lastError: string | null = null;
+  private lastDisconnectClass: Extract<WorkshopFailureClass, "adapter_exit" | "connection_lost"> | null = null;
+  private readonly timing: Required<ClaudeAcpRuntimeTiming>;
 
-  constructor(claudeExecutable: string | null) {
+  constructor(claudeExecutable: string | null, timing: ClaudeAcpRuntimeTiming = {}) {
     this.claudeExecutable = claudeExecutable;
+    this.timing = {
+      idleTimeoutMs: timing.idleTimeoutMs ?? boundedTestTiming("HEARTH_TEST_TURN_IDLE_MS", TURN_IDLE_TIMEOUT_MS),
+      absoluteTimeoutMs: timing.absoluteTimeoutMs ?? boundedTestTiming("HEARTH_TEST_TURN_ABSOLUTE_MS", TURN_ABSOLUTE_TIMEOUT_MS),
+      quietAfterMs: timing.quietAfterMs ?? boundedTestTiming("HEARTH_TEST_TURN_QUIET_MS", TURN_QUIET_AFTER_MS),
+      permissionTimeoutMs: timing.permissionTimeoutMs ?? boundedTestTiming("HEARTH_TEST_PERMISSION_MS", PERMISSION_TIMEOUT_MS)
+    };
   }
 
   get available(): boolean {
@@ -646,7 +668,7 @@ export class ClaudeAcpRuntime {
       connection: "connecting",
       process: "starting",
       idleDeadlineAt: null,
-      absoluteDeadlineAt: isoAfter(TURN_ABSOLUTE_TIMEOUT_MS),
+      absoluteDeadlineAt: isoAfter(this.timing.absoluteTimeoutMs),
       failure: null
     };
     onEvent({ type: "health", health: connectingHealth });
@@ -659,6 +681,7 @@ export class ClaudeAcpRuntime {
         state: "failed",
         connection: "disconnected",
         process: "stopped",
+        absoluteDeadlineAt: null,
         failure: {
           class: "connection_lost",
           message: error instanceof Error ? error.message.slice(0, 320) : "Claude Code could not open its managed connection.",
@@ -728,6 +751,7 @@ export class ClaudeAcpRuntime {
       replySegments: [],
       sawToolCall: false,
       mutationObserved: false,
+      activeToolIds: new Set(),
       onEvent,
       finished,
       resolveFinished,
@@ -740,8 +764,8 @@ export class ClaudeAcpRuntime {
         pendingPermissionSince: null,
         connection: "connected",
         process: "running",
-        idleDeadlineAt: isoAfter(TURN_IDLE_TIMEOUT_MS),
-        absoluteDeadlineAt: isoAfter(TURN_ABSOLUTE_TIMEOUT_MS),
+        idleDeadlineAt: isoAfter(this.timing.idleTimeoutMs),
+        absoluteDeadlineAt: isoAfter(this.timing.absoluteTimeoutMs),
         failure: null
       },
       idleTimer: null,
@@ -784,7 +808,7 @@ export class ClaudeAcpRuntime {
         turn.absoluteTimer = setTimeout(() => {
           void connection.agent.notify(methods.agent.session.cancel, { sessionId });
           reject(new ClaudeAcpTurnDeadlineError("absolute_timeout"));
-        }, TURN_ABSOLUTE_TIMEOUT_MS);
+        }, this.timing.absoluteTimeoutMs);
       });
       this.renewIdleDeadline(sessionId);
       let response;
@@ -856,6 +880,8 @@ export class ClaudeAcpRuntime {
             ...turn.health,
             state: "interrupted",
             pendingPermissionSince: null,
+            idleDeadlineAt: null,
+            absoluteDeadlineAt: null,
             failure: {
               class: "interrupted",
               message: this.interrupted.has(sessionId)
@@ -872,6 +898,8 @@ export class ClaudeAcpRuntime {
         }
         const failureClass: WorkshopFailureClass = error instanceof ClaudeAcpTurnDeadlineError
           ? error.failureClass
+          : this.lastDisconnectClass
+            ? this.lastDisconnectClass
           : this.connection
             ? "provider_error"
             : "connection_lost";
@@ -879,7 +907,10 @@ export class ClaudeAcpRuntime {
           ...turn.health,
           state: failureClass.endsWith("timeout") ? "stalled" : "failed",
           connection: this.connection ? "connected" : "disconnected",
-          process: this.child?.exitCode == null ? "running" : "stopped",
+          process: this.child && this.child.exitCode == null ? "running" : "stopped",
+          pendingPermissionSince: null,
+          idleDeadlineAt: null,
+          absoluteDeadlineAt: null,
           failure: {
             class: failureClass,
             message: error instanceof Error ? error.message.slice(0, 320) : "Claude Code could not finish this turn.",
@@ -896,6 +927,8 @@ export class ClaudeAcpRuntime {
           ...turn.health,
           state: "interrupted",
           pendingPermissionSince: null,
+          idleDeadlineAt: null,
+          absoluteDeadlineAt: null,
           failure: {
             class: "interrupted",
             message: this.interrupted.has(sessionId) ? "A newer direction interrupted this turn." : "Claude Code cancelled this turn.",
@@ -983,9 +1016,19 @@ export class ClaudeAcpRuntime {
     if (turn.quietTimer) clearTimeout(turn.quietTimer);
     turn.health = {
       ...turn.health,
-      idleDeadlineAt: isoAfter(TURN_IDLE_TIMEOUT_MS)
+      idleDeadlineAt: isoAfter(this.timing.idleTimeoutMs)
     };
     turn.idleTimer = setTimeout(() => {
+      if (turn.health.pendingPermissionSince || turn.activeToolIds.size > 0) {
+        turn.health = {
+          ...turn.health,
+          state: turn.health.pendingPermissionSince ? "waiting_for_user" : "quiet_connected",
+          failure: null
+        };
+        this.renewIdleDeadline(sessionId);
+        turn.onEvent({ type: "health", health: turn.health });
+        return;
+      }
       turn.health = {
         ...turn.health,
         state: "stalled",
@@ -999,12 +1042,12 @@ export class ClaudeAcpRuntime {
       };
       turn.onEvent({ type: "health", health: turn.health });
       turn.rejectDeadline?.(new ClaudeAcpTurnDeadlineError("idle_timeout"));
-    }, TURN_IDLE_TIMEOUT_MS);
+    }, this.timing.idleTimeoutMs);
     turn.quietTimer = setTimeout(() => {
       if (turn.health.pendingPermissionSince || turn.health.state !== "working") return;
       turn.health = { ...turn.health, state: "quiet_connected" };
       turn.onEvent({ type: "health", health: turn.health });
-    }, TURN_QUIET_AFTER_MS);
+    }, this.timing.quietAfterMs);
   }
 
   private noteProviderEvent(sessionId: string, tool = false): void {
@@ -1141,7 +1184,14 @@ export class ClaudeAcpRuntime {
       throw new Error("Hearth could not open Maker's managed connection.");
     }
     this.child = child;
+    this.lastDisconnectClass = null;
     this.stderr = "";
+    child.once("error", () => {
+      this.lastDisconnectClass = "connection_lost";
+    });
+    child.once("exit", () => {
+      this.lastDisconnectClass = "adapter_exit";
+    });
     child.stderr.on("data", (chunk: Buffer) => {
       this.stderr = (this.stderr + chunk.toString("utf8")).slice(-6_000);
     });
@@ -1192,7 +1242,7 @@ export class ClaudeAcpRuntime {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         this.cancelPermission(permissionId);
-      }, PERMISSION_TIMEOUT_MS);
+      }, this.timing.permissionTimeoutMs);
       this.permissions.set(permissionId, {
         sessionId: request.sessionId,
         requestId: turn.requestId,
@@ -1305,6 +1355,9 @@ export class ClaudeAcpRuntime {
       turn.onEvent({ type: "reply_boundary" });
       const activity = normalizeClaudeToolActivity(update);
       if (["edit", "delete", "move", "execute"].includes(activity.kind)) turn.mutationObserved = true;
+      if (activity.status === "pending" || activity.status === "in_progress") {
+        turn.activeToolIds.add(activity.id);
+      }
       this.activities.set(activity.id, activity);
       turn.onEvent({ type: "activity", activity });
       return;
@@ -1312,6 +1365,11 @@ export class ClaudeAcpRuntime {
     if (update.sessionUpdate === "tool_call_update") {
       const activity = normalizeClaudeToolActivity(update, this.activities.get(update.toolCallId));
       if (["edit", "delete", "move", "execute"].includes(activity.kind)) turn.mutationObserved = true;
+      if (activity.status === "pending" || activity.status === "in_progress") {
+        turn.activeToolIds.add(activity.id);
+      } else {
+        turn.activeToolIds.delete(activity.id);
+      }
       this.activities.set(activity.id, activity);
       turn.onEvent({ type: "activity", activity });
     }
@@ -1348,8 +1406,15 @@ export class ClaudeAcpRuntime {
   }
 
   private reset(): void {
+    for (const [permissionId, pending] of this.permissions) {
+      clearTimeout(pending.timeout);
+      this.permissions.delete(permissionId);
+      pending.resolve({ outcome: { outcome: "cancelled" } });
+    }
     this.connection = null;
+    const child = this.child;
     this.child = null;
+    if (child && child.exitCode == null && !child.killed) child.kill();
     this.sessions.clear();
     this.turns.clear();
     this.activities.clear();

@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.49.0. It records the Phase 1 turn-health and
-Provider Doctor work completed and locally verified on 2026-08-07.
+This is the current engineering snapshot for Hearth 0.49.1. It records the Phase 1 turn-health and
+Provider Doctor work completed and live-packaged on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -36,7 +36,8 @@ and explicit milestone records resume with 0.48.0:
 | 0.47.x | Manual, Auto, and Planning controls, effort selection, context usage, terminal-like streaming, and active-turn interruption were completed and repaired. |
 | 0.47.2 | Living Room conversations, pressure tests, handoffs, and managed Workshop interruption are integrated. |
 | 0.48.0 | Dependency trust baseline, isolated runtime upgrades, Windows CI, and truthful provider identity. |
-| 0.49.0 current | Activity-aware managed turns, explicit recovery fate, per-turn usage, and Provider Doctor. |
+| 0.49.0 | Activity-aware managed turns, explicit recovery fate, per-turn usage, and Provider Doctor. |
+| 0.49.1 current | Long-tool health renewal, truthful adapter-loss state, permission cleanup, and a repeatable packaged health drill. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
@@ -53,8 +54,15 @@ resume explicit milestone records or maintain a changelog so the public history 
   safe. Hearth never auto-replays a turn; mutating activity produces a visible caution.
 - Relaunch cleanup clears pending permissions and marks an orphaned turn as interrupted with an
   explicit no-replay fate.
+- Known pending or in-progress tools keep renewing the idle deadline while the separate absolute
+  ceiling remains intact. Finished, interrupted, and failed turns clear stale permission and
+  deadline indicators.
+- Adapter loss now reaps the surviving child, reports the process as stopped, and records
+  connection loss without replaying the direction.
 - The final 0.49.0 audit also advanced the dev-only `js-yaml` lock entry to 4.3.1 after a new
   quadratic-CPU advisory appeared; production and complete dependency audits are clean.
+- The 0.49.1 release gate advanced the dev-only `nanoid` lock entry to 3.3.18 after a new
+  zero-size custom-generator advisory appeared; both audits remain clean.
 
 ### Usage and recovery truth
 
@@ -100,13 +108,19 @@ Claude transcript; the live packaged smoke reported **Claude Opus 5**. Before th
 the UI says **Claude configured Opus**. Codex is identified as the active provider without inventing
 an underlying model the adapter did not disclose.
 
+## Release evidence
+
+The 0.49.1 unpacked Windows app passed a live Claude/Codex baseline and a repeatable health drill.
+A real Claude tool remained healthy beyond the compressed ten-second test idle threshold, exposed
+quiet, permission-wait, and completed states, and reported Claude Opus 5 usage. The drill then killed
+the exact Claude ACP adapter descendant and verified a stopped process, `connection_lost` fate, and
+no automatic replay. A final close/relaunch with a pending write permission verified that the turn
+became interrupted, the permission queue was empty, and the unapproved file was never created.
+
+This proves the state transitions and cleanup path under compressed test timings. The production
+two-hour absolute ceiling is intentionally not waited out in automation.
+
 ## Next engineering findings
-
-### Live soak evidence remains pending
-
-The deterministic suite and production build exercise the contracts and persistence, but the new
-two-hour ceiling is intentionally not waited out in CI. Before 0.49.0 is treated as field-proven, run
-a packaged live long-tool soak plus an adapter-failure and pending-permission shutdown drill.
 
 ### Context visibility is aggregate
 
@@ -118,9 +132,9 @@ provider prompt construction that ACP does not expose.
 
 ## Current quality signal
 
-- Type checking, 106 unit tests across 15 files, the production build, and all 13 serial Electron
-  scenarios pass for 0.49.0. The packaged live soak and failure drill remain release-gate checks.
-- The 0.49.0 Electron run exercised continuity, containment, real ConPTY behavior, handoffs, Living Room,
+- Type checking, 109 unit tests across 15 files, the production build, and all 13 serial Electron
+  scenarios pass for 0.49.1. The packaged live baseline and health drill also pass.
+- The 0.49.1 Electron run exercised continuity, containment, real ConPTY behavior, handoffs, Living Room,
   project-scoped conversations, reload/relaunch, and responsive layouts.
 - The current rebuilt package passed both the local ConPTY smoke and the optional live Claude/Codex
   ACP smoke. Those remain required whenever provider, interruption, context, or permissions change.

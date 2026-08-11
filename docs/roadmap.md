@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.49.0 implementation described in
+This roadmap starts from the real Hearth 0.49.1 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -57,11 +57,11 @@ its first green public run after these commits are pushed before a status badge 
 and no UI claiming more provider certainty than Hearth possesses. **External confirmation pending:**
 the first pushed Windows workflow run.
 
-## Phase 1 — Workshop turn health and Provider Doctor delivered locally in 0.49.0
+## Phase 1 — Workshop turn health and Provider Doctor field-proven in 0.49.1
 
 This is the first product milestone inspired by Buzz. The runtime, persistence, renderer, recovery
-controls, and read-only diagnostics are implemented and locally verified. A live packaged long-tool
-soak remains part of the release gate before treating the milestone as field-proven.
+controls, and read-only diagnostics are implemented and verified in the packaged Windows app. The
+0.49.1 health drill closes the live long-tool, adapter-loss, and pending-permission release gate.
 
 ### Turn-health model
 
@@ -92,10 +92,12 @@ soak remains part of the release gate before treating the milestone as field-pro
 - Keeps session totals, context-window use, cache reads/writes, and estimated local payload size
   visually distinct.
 
-**Local exit:** 106 deterministic unit tests, all 13 Electron scenarios, and the production build
+**Exit met:** 109 deterministic unit tests, all 13 Electron scenarios, and the production build
 pass; health renewal, interruption,
 permission cleanup, restart fate, conscious retry, and fresh-session retirement are represented in
-the implementation. **Release evidence pending:** a packaged live long-tool soak and failure drill.
+the implementation. The packaged live drill kept a known tool healthy beyond a compressed idle
+deadline, recorded non-replayed adapter loss, and proved a pending write was not performed across
+close and relaunch.
 
 ## Phase 2 — context inspector and durable continuity
 

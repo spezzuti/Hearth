@@ -4,7 +4,7 @@ Start here:
 
 - [Reviewer guide](reviewer-guide.md) — a focused walkthrough and evidence map
 - [Current status](current-status.md) — shipped capability, release-trail gap, and current audit findings
-- [Roadmap](roadmap.md) — prioritized hardening and product milestones from the 0.49.0 turn-health baseline
+- [Roadmap](roadmap.md) — prioritized hardening and product milestones from the 0.49.1 field-proven turn-health baseline
 - [Architecture](architecture.md) — process model, providers, persistence, and source map
 - [Security notes](security-notes.md) — detailed trust and capability boundaries
 - [Resident art prompts](resident-art-prompts.md) — provenance and visual direction for bundled art

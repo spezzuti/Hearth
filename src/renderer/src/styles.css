@@ -6125,6 +6125,7 @@ button.room-link:not(.is-disabled):hover {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
   max-width: 100%;
   gap: 8px;
   max-height: min(48vh, 440px);
@@ -12433,7 +12434,7 @@ button.room-link:not(.is-disabled):hover {
   }
 
   .workshop-maker:has(.maker-proposal) {
-    grid-template-rows: auto minmax(72px, 0.65fr) minmax(200px, 1.35fr) max-content;
+    grid-template-rows: auto minmax(42px, 0.45fr) minmax(0, 1.55fr) max-content;
   }
 
   .studio-room {

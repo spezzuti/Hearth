@@ -1,6 +1,6 @@
 {
   "name": "hearth",
-  "version": "0.49.0",
+  "version": "0.49.1",
   "private": true,
   "author": "Hearth",
   "license": "Apache-2.0",
@@ -34,6 +34,7 @@
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
     "test:packaged": "node scripts/packaged-smoke.mjs",
+    "test:packaged:health": "node scripts/packaged-health-smoke.mjs",
     "verify": "npm run typecheck && npm run test && npm run test:e2e",
     "package:dir": "npm run build && electron-builder --dir",
     "package": "npm run build && electron-builder --win nsis"

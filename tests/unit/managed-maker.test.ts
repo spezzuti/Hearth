@@ -132,6 +132,134 @@ describe("managed Maker boundary", () => {
     expect(secondHealth).toContain("completed");
   });
 
+  it("renews the idle deadline from provider activity while preserving quiet-connected truth", async () => {
+    vi.useFakeTimers();
+    try {
+      const runtime = new ClaudeAcpRuntime("claude.exe", {
+        idleTimeoutMs: 1_000,
+        quietAfterMs: 250,
+        absoluteTimeoutMs: 5_000
+      });
+      const internal = runtime as unknown as {
+        ensureSession: () => Promise<{
+          connection: { agent: { request: () => Promise<Record<string, unknown>>; notify: () => Promise<void> } };
+          sessionId: string;
+          resumedPriorSession: boolean;
+        }>;
+        handleUpdate: (notification: Record<string, unknown>) => void;
+        turns: Map<string, { reply: string }>;
+        connection: unknown;
+      };
+      let finishPrompt!: (value: Record<string, unknown>) => void;
+      const prompt = new Promise<Record<string, unknown>>((resolve) => { finishPrompt = resolve; });
+      const connection = {
+        agent: {
+          request: () => prompt,
+          notify: async () => undefined
+        }
+      };
+      internal.connection = connection;
+      internal.ensureSession = async () => ({ connection, sessionId: "health-session", resumedPriorSession: false });
+      const health: string[] = [];
+      const result = runtime.reason("C:\\Projects\\Hearth", "health-turn", "Watch the tool.", (event) => {
+        if (event.type === "health") health.push(event.health.state);
+      });
+      await vi.waitFor(() => expect(internal.turns.has("health-session")).toBe(true));
+      await vi.advanceTimersByTimeAsync(800);
+      internal.handleUpdate({
+        sessionId: "health-session",
+        update: { sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "Still working." } }
+      });
+      await vi.advanceTimersByTimeAsync(800);
+      internal.handleUpdate({
+        sessionId: "health-session",
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "long-tool",
+          kind: "execute",
+          title: "Run the long tool",
+          status: "in_progress",
+          rawInput: { command: "long-tool" },
+          locations: [],
+          content: [],
+          _meta: { claudeCode: { toolName: "Bash" } }
+        }
+      });
+      await vi.advanceTimersByTimeAsync(2_200);
+      expect(health).toContain("quiet_connected");
+      expect(health).not.toContain("stalled");
+      internal.handleUpdate({
+        sessionId: "health-session",
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "long-tool",
+          status: "completed",
+          rawOutput: "done",
+          content: []
+        }
+      });
+      internal.turns.get("health-session")!.reply = "Done.";
+      finishPrompt({ stopReason: "end_turn" });
+      await expect(result).resolves.toBe("Done.");
+      expect(health.at(-1)).toBe("completed");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("records connection failure before a managed turn can start", async () => {
+    const runtime = new ClaudeAcpRuntime("claude.exe");
+    const internal = runtime as unknown as { ensureSession: () => Promise<never> };
+    internal.ensureSession = async () => { throw new Error("adapter unavailable"); };
+    const health: Array<{
+      state: string;
+      failure: string | null;
+      absoluteDeadlineAt: string | null;
+    }> = [];
+    await expect(runtime.reason("C:\\Projects\\Hearth", "failed-connect", "Start.", (event) => {
+      if (event.type === "health") {
+        health.push({
+          state: event.health.state,
+          failure: event.health.failure?.class ?? null,
+          absoluteDeadlineAt: event.health.absoluteDeadlineAt
+        });
+      }
+    })).rejects.toThrow("adapter unavailable");
+    expect(health).toEqual([
+      { state: "reconnecting", failure: null, absoluteDeadlineAt: expect.any(String) },
+      { state: "failed", failure: "connection_lost", absoluteDeadlineAt: null }
+    ]);
+  });
+
+  it("reaps a surviving adapter child and settles permissions during connection reset", () => {
+    const runtime = new ClaudeAcpRuntime("claude.exe");
+    const kill = vi.fn(() => true);
+    let outcome: unknown = null;
+    const internal = runtime as unknown as {
+      child: { exitCode: number | null; killed: boolean; kill: () => boolean } | null;
+      permissions: Map<string, {
+        sessionId: string;
+        requestId: string;
+        timeout: ReturnType<typeof setTimeout>;
+        options: [];
+        resolve: (value: unknown) => void;
+      }>;
+      reset: () => void;
+    };
+    internal.child = { exitCode: null, killed: false, kill };
+    internal.permissions.set("permission-1", {
+      sessionId: "session-1",
+      requestId: "request-1",
+      timeout: setTimeout(() => undefined, 60_000),
+      options: [],
+      resolve: (value) => { outcome = value; }
+    });
+    internal.reset();
+    expect(kill).toHaveBeenCalledOnce();
+    expect(internal.permissions.size).toBe(0);
+    expect(outcome).toEqual({ outcome: { outcome: "cancelled" } });
+  });
+
   it("turns explicit conversational mode requests into real ACP modes", () => {
     expect(requestedMakerMode("Switch to plan mode and inspect this first.")).toBe("plan");
     expect(requestedMakerMode("Go back to auto.")).toBe("auto");

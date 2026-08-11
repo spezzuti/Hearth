@@ -21,8 +21,8 @@ lifecycle model.
 - production renderer and desktop build
 - all 13 serial Electron scenarios
 
-## Release evidence still required
+## Release evidence
 
-- packaged Claude/Codex live smoke
-- a long healthy tool soak
-- adapter-failure and pending-permission shutdown drills
+The required packaged Claude/Codex baseline, long healthy tool soak, adapter-failure drill, and
+pending-permission shutdown drill were completed in 0.49.1. See
+[Milestone 47](m47-phase-one-live-release-gate.md) for the resulting fixes and exact evidence.

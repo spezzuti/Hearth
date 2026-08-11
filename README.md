@@ -9,7 +9,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.49.0. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 prototype, version 0.49.1. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
@@ -195,13 +195,17 @@ database.
 | `npm run test:e2e` | Build and run the real Electron continuity suite |
 | `npm run verify` | Typecheck, unit tests, and Electron tests |
 | `npm run package:dir` | Build an unpacked Windows application |
+| `npm run test:packaged` | Exercise the unpacked app, real ConPTY, and optional live providers |
+| `npm run test:packaged:health` | Run the live long-tool and provider-failure release drill |
 | `npm run package` | Build the Windows NSIS installer |
 
-The current release gate covers 106 unit tests across 15 files and 13 serial Electron scenarios,
+The current release gate covers 109 unit tests across 15 files and 13 serial Electron scenarios,
 including renderer reload, relaunch, ConPTY lifecycle, project containment, bounded edits, resident
 handoffs, Living Room orchestration, compact layouts, archive recovery, and the managed Workshop.
-The packaged smoke test additionally exercises the installed binary, real PTY, and optional live ACP
-providers.
+The packaged smoke additionally exercises the unpacked binary, real PTY, and optional live ACP
+providers. The health drill proves that a known long-running tool can cross the compressed test idle
+threshold, then verifies explicit non-replay fate after adapter loss and safe cleanup of a pending
+permission across close and relaunch.
 
 ## Data and network behavior
 

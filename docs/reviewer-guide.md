@@ -79,6 +79,7 @@ variable.
 | Project path containment and bounded edits | `src/core/projects.ts` | `tests/unit/projects.test.ts`, project-review E2E scenarios |
 | Real persistent ConPTY | `src/core/terminal.ts` | terminal-state unit tests and three terminal E2E scenarios |
 | Project-scoped Claude ACP continuity | `src/core/claude-acp-runtime.ts` | `tests/unit/managed-maker.test.ts`, packaged smoke |
+| Activity-aware turn health and failure fate | `src/core/claude-acp-runtime.ts` | managed-maker unit tests and packaged health drill |
 | Safe active-turn interruption | `src/core/claude-acp-runtime.ts`, `src/core/core.ts` | deterministic interruption unit test and optional real-provider packaged smoke |
 | Independent Critic routing | `src/core/codex-acp-runtime.ts`, `src/core/agent-provider.ts` | provider unit tests and packaged smoke |
 | Bounded shared-room orchestration | `src/core/living-room.ts` | Living Room unit and Electron tests |
@@ -91,15 +92,22 @@ variable.
 npm run typecheck
 npm test
 npm run test:e2e
+npm run package:dir
+npm run test:packaged:health
 ```
 
-The complete `npm run verify` gate runs all three. On the current release, that is 106 unit tests and
+The complete `npm run verify` gate runs the first three. On the current release, that is 109 unit tests and
 13 serial Electron scenarios. The E2E suite creates synthetic repositories and isolated application
 data; it does not use the reviewer's personal Hearth database.
 
 The optional packaged live-provider smoke is controlled by environment flags in
 `scripts/packaged-smoke.mjs`. It can verify Claude ACP, Codex ACP, detailed workstream events,
 session resume, and mid-turn interruption against the packaged executable.
+
+`npm run test:packaged:health` is the destructive live release drill. It uses isolated app data,
+runs a bounded long-tool soak, terminates only the validated Claude adapter descendant, and closes
+the app with an unresolved test permission. Run it only against a freshly built unpacked app and a
+bounded test direction; its assertions require authenticated Claude Code.
 
 ## Known limitations worth reviewing
 
