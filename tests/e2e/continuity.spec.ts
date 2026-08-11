@@ -2746,12 +2746,18 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(
         running.page.getByRole("heading", { name: "Work with the process in view." })
       ).toBeVisible();
+      const providerLabel = await running.page.evaluate(async () =>
+        (await window.hearth.bootstrap()).terminal.capabilities.claudeAvailable
+          ? "Claude configured Opus"
+          : "Hearth local"
+      );
       const makerProvider = running.page.locator(".maker-provider");
-      await expect(makerProvider).toContainText("Claude");
-      await expect(makerProvider).toContainText("configured Opus");
+      await expect(makerProvider).toContainText(
+        new RegExp(providerLabel.split(/\s+/).join("\\s*"))
+      );
       await expect(
         running.page.locator(".maker-status")
-      ).toHaveAttribute("aria-label", "Claude configured Opus · online");
+      ).toHaveAttribute("aria-label", `${providerLabel} · online`);
       await expect(running.page.locator(".maker-status")).toHaveClass(
         /maker-status--online/
       );
@@ -2796,7 +2802,7 @@ test.describe.serial("continuity vertical slice", () => {
               document.documentElement.clientWidth
           };
         });
-        expect(statusLayout.label).toBe("Claude configured Opus");
+        expect(statusLayout.label).toBe(providerLabel);
         expect(statusLayout.providerDotGap).toBeGreaterThanOrEqual(6);
         expect(statusLayout.rightInset).toBeGreaterThanOrEqual(16);
         expect(statusLayout.statusAfterAvatar).toBeGreaterThanOrEqual(4);
