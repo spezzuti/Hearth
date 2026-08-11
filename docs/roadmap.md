@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.52.0 implementation described in
+This roadmap starts from the real Hearth 0.53.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -155,6 +155,39 @@ This is Hearth's safe interpretation of self-improving skills and learned approv
 
 **Exit met:** Hearth becomes more familiar through reviewable habits without silently rewriting resident
 prompts or permission policy.
+
+## Phase 4.5 — furnish the house
+
+The first foundation pass shipped in 0.53.0. It establishes a coherent visual language and furnishes
+Home without moving, renaming, or weakening any workflow.
+
+### Delivered foundation and Home
+
+- Added shared plaster, linen, paper, painted wood, copper, and brass tokens with consistent raised
+  and settled surface depth.
+- Improved focus visibility, selection, control motion, reduced-motion behavior, and material
+  contrast across the shared shell.
+- Gave Home warmer ambient light, a desk-like Return Pack, clearer panel identities, a more present
+  household, and an ember-like system state.
+- Made Home deliberately fall to one readable column at compact desktop widths instead of squeezing
+  resident identity and controls into narrow cards.
+- Added an explicit room identity hook to the shell so later rooms can vary atmosphere while staying
+  visibly inside the same house.
+
+### Remaining furnishing passes
+
+1. Furnish Study and Workshop as related working rooms: stronger focus, restrained technical
+   materials, and no loss of terminal density or Claude Code readability.
+2. Furnish Library and Studio with distinct shelf/paper and creative-work surfaces while preserving
+   their current information architecture.
+3. Furnish Living Room and Archive around shared discussion and quiet retention respectively.
+4. Complete the Companion's final expressive visual identity, then tune resident expression and
+   presence across their established surfaces.
+5. Refresh public screenshots only after every room passes full-size, 1080×720, 1040×700, scaling,
+   wrapping, focus, copy/paste, and reduced-motion review.
+
+**Exit:** Hearth feels inhabited and visually coherent during daily use, while every room remains a
+working surface rather than a literal space the user must navigate.
 
 ## Phase 5 — conversational voice
 

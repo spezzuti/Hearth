@@ -5293,7 +5293,10 @@ export function App(): ReactNode {
   }
 
   return (
-    <div className={classNames("app-shell", workshopFocus && "is-workshop-focus")}>
+    <div
+      className={classNames("app-shell", workshopFocus && "is-workshop-focus")}
+      data-room={route}
+    >
       {!workshopFocus ? (
         <Sidebar
           route={route}

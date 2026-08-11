@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.52.0. It records the Phase 4 supervised House
-Practices work completed and verified on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.53.0. It records the first Phase 4.5 furnishing
+pass completed and verified on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -40,10 +40,24 @@ and explicit milestone records resume with 0.48.0:
 | 0.49.1 | Long-tool health renewal, truthful adapter-loss state, permission cleanup, and a repeatable packaged health drill. |
 | 0.50.0 | Persisted per-turn context manifests, provider/local accounting separation, and threshold-aware continuity choices. |
 | 0.51.0 | Typed canonical references, bounded public metadata, calm cross-room source cards, and Librarian citation rules. |
-| 0.52.0 current | Supervised House Practices with evidence, provenance, explicit effects, scoped approval, and frozen decisions. |
+| 0.52.0 | Supervised House Practices with evidence, provenance, explicit effects, scoped approval, and frozen decisions. |
+| 0.53.0 current | Shared visual-language foundation and a fully furnished, compact-safe Home surface. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
+
+## Phase 4.5 foundation outcome
+
+- The shared shell now has named material, typography, depth, focus, and motion tokens rather than
+  relying only on one-off room colors.
+- Home uses warm ambient light, linen and paper surfaces, a desk-like Return Pack, distinct project,
+  household, capture, and Companion materials, and larger resident portraits.
+- The shell exposes the current room as a stable styling hook for later room identities without
+  coupling decoration to navigation behavior.
+- At 1080×720 Home becomes a readable single column. The Electron suite asserts that both the
+  document and Home surface remain horizontally contained.
+- The final Companion form and the remaining room identities are intentionally separate furnishing
+  passes; 0.53.0 does not pretend those assets are finished.
 
 ## Phase 4 outcome
 

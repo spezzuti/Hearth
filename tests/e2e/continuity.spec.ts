@@ -939,6 +939,23 @@ test.describe.serial("continuity vertical slice", () => {
       fullPage: true
     });
 
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setSize(1080, 720);
+    });
+    await running.page.waitForTimeout(180);
+    const furnishedHomeBounds = await running.page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: document.documentElement.clientWidth,
+      roomWidth: document.querySelector(".home-room")?.scrollWidth ?? 0,
+      roomViewportWidth: document.querySelector(".home-room")?.clientWidth ?? 0
+    }));
+    expect(furnishedHomeBounds.documentWidth).toBe(furnishedHomeBounds.viewportWidth);
+    expect(furnishedHomeBounds.roomWidth).toBe(furnishedHomeBounds.roomViewportWidth);
+    await running.page.screenshot({
+      path: path.join(screenshotDirectory, "home-furnished-1080.png"),
+      fullPage: true
+    });
+
     await running.app.close();
     running = await launch();
 

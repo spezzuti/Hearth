@@ -4,7 +4,8 @@ Start here:
 
 - [Reviewer guide](reviewer-guide.md) — a focused walkthrough and evidence map
 - [Current status](current-status.md) — shipped capability, release-trail gap, and current audit findings
-- [Roadmap](roadmap.md) — prioritized milestones from the 0.52.0 supervised-practice baseline
+- [Visual language](visual-language.md) — house-wide materials, typography, motion, and room identity
+- [Roadmap](roadmap.md) — prioritized milestones from the 0.53.0 furnishing-foundation baseline
 - [Architecture](architecture.md) — process model, providers, persistence, and source map
 - [Security notes](security-notes.md) — detailed trust and capability boundaries
 - [Resident art prompts](resident-art-prompts.md) — provenance and visual direction for bundled art

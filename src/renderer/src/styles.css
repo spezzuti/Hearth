@@ -22,6 +22,29 @@
   --gold: #aa8442;
   --shadow: 0 18px 50px rgba(56, 44, 34, 0.09);
   --shadow-soft: 0 8px 26px rgba(56, 44, 34, 0.07);
+  --font-house: Georgia, "Times New Roman", serif;
+  --font-ui: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-code: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+  --plaster: #eee7dc;
+  --plaster-light: #f5efe6;
+  --linen: #f8f4ed;
+  --linen-deep: #eee5d9;
+  --wood: #664535;
+  --wood-dark: #342a25;
+  --brass: #b59054;
+  --brass-light: #d4b778;
+  --focus-ring: rgba(177, 94, 59, 0.32);
+  --shadow-raised:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 13px 34px rgba(67, 50, 36, 0.09),
+    0 2px 5px rgba(67, 50, 36, 0.05);
+  --shadow-settled:
+    0 1px 0 rgba(255, 255, 255, 0.64) inset,
+    0 7px 18px rgba(67, 50, 36, 0.065);
+  --motion-quick: 140ms cubic-bezier(0.2, 0.72, 0.25, 1);
+  --motion-gentle: 260ms cubic-bezier(0.2, 0.72, 0.25, 1);
+  color-scheme: light;
+  accent-color: var(--copper);
 }
 
 * {
@@ -44,7 +67,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -54,9 +78,30 @@ button {
 
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgba(179, 98, 63, 0.28);
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+::selection {
+  color: #fffaf4;
+  background: #946047;
+}
+
+button {
+  transition:
+    color var(--motion-quick),
+    background-color var(--motion-quick),
+    border-color var(--motion-quick),
+    box-shadow var(--motion-quick),
+    filter var(--motion-quick),
+    transform var(--motion-quick);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 button:disabled {
@@ -88,7 +133,7 @@ p {
   height: 100%;
   background:
     radial-gradient(circle at 78% 8%, rgba(255, 255, 255, 0.54), transparent 34%),
-    #ece5da;
+    var(--plaster);
 }
 
 .sidebar {
@@ -100,8 +145,9 @@ p {
   padding: 25px 17px 18px;
   color: #eff1eb;
   background:
-    radial-gradient(circle at 18% 4%, rgba(122, 159, 144, 0.16), transparent 30%),
-    linear-gradient(165deg, #273f3e 0%, #1e3232 52%, #172828 100%);
+    radial-gradient(circle at 12% 3%, rgba(152, 184, 165, 0.2), transparent 26%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025), transparent 16%, transparent 84%, rgba(0, 0, 0, 0.08)),
+    linear-gradient(165deg, #2a4744 0%, #1f3735 52%, #172b2a 100%);
   border-right: 1px solid rgba(0, 0, 0, 0.22);
   box-shadow: 8px 0 32px rgba(25, 31, 29, 0.12);
 }
@@ -111,15 +157,16 @@ p {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.15;
   background-image:
     repeating-linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.05) 0,
-      rgba(255, 255, 255, 0.05) 1px,
+      rgba(255, 255, 255, 0.04) 0,
+      rgba(255, 255, 255, 0.04) 1px,
       transparent 1px,
-      transparent 7px
-    );
+      transparent 8px
+    ),
+    linear-gradient(180deg, transparent 70%, rgba(0, 0, 0, 0.22));
   mix-blend-mode: overlay;
 }
 
@@ -384,7 +431,10 @@ button.room-link:not(.is-disabled):hover {
   justify-content: space-between;
   gap: 22px;
   padding: 36px 28px 5px;
-  background: rgba(249, 246, 240, 0.98);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.36), transparent 30%, rgba(115, 86, 60, 0.025)),
+    repeating-linear-gradient(0deg, rgba(101, 79, 57, 0.018) 0 1px, transparent 1px 4px),
+    rgba(249, 246, 240, 0.985);
   border-bottom: 1px solid rgba(123, 106, 88, 0.16);
   box-shadow: 0 6px 24px rgba(72, 58, 43, 0.04);
   -webkit-app-region: drag;
@@ -456,12 +506,14 @@ button.room-link:not(.is-disabled):hover {
   min-width: 0;
   height: 43px;
   padding: 0 13px;
-  background: #fffdf9;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 246, 239, 0.94)),
+    #fffdf9;
   border: 1px solid #d8d0c5;
   border-radius: 13px;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.8),
-    0 5px 14px rgba(65, 51, 37, 0.04);
+    0 5px 14px rgba(65, 51, 37, 0.055);
 }
 
 .capture-bar:focus-within {
@@ -550,7 +602,7 @@ button.room-link:not(.is-disabled):hover {
   background:
     linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
     radial-gradient(circle at 89% 3%, rgba(255, 255, 255, 0.54), transparent 27%),
-    #eee7dc;
+    var(--plaster);
   scrollbar-color: #c8bfb3 transparent;
   scrollbar-width: thin;
 }
@@ -567,7 +619,27 @@ button.room-link:not(.is-disabled):hover {
 }
 
 .home-room {
+  isolation: isolate;
   padding: 34px clamp(30px, 4vw, 58px) 70px;
+  background:
+    radial-gradient(ellipse at 82% -4%, rgba(255, 251, 232, 0.92), transparent 34%),
+    linear-gradient(90deg, rgba(101, 70, 48, 0.025), transparent 13%, transparent 86%, rgba(101, 70, 48, 0.035)),
+    linear-gradient(180deg, var(--plaster-light), var(--plaster) 72%);
+}
+
+.home-room::after {
+  position: absolute;
+  top: 0;
+  right: clamp(25px, 5vw, 72px);
+  z-index: 0;
+  width: min(34vw, 430px);
+  height: 210px;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(112deg, transparent 0 34%, rgba(255, 249, 218, 0.14) 35% 44%, transparent 45% 100%),
+    linear-gradient(75deg, transparent 0 55%, rgba(255, 250, 225, 0.12) 56% 65%, transparent 66% 100%);
+  filter: blur(1px);
 }
 
 .home-room > * {
@@ -616,9 +688,12 @@ button.room-link:not(.is-disabled):hover {
   min-width: 215px;
   gap: 12px;
   padding: 10px 13px;
-  background: rgba(248, 245, 239, 0.65);
-  border: 1px solid rgba(138, 124, 107, 0.14);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(240, 232, 221, 0.6)),
+    rgba(248, 245, 239, 0.78);
+  border: 1px solid rgba(126, 102, 77, 0.17);
   border-radius: 15px;
+  box-shadow: var(--shadow-settled);
 }
 
 .ambient-orb {
@@ -631,7 +706,21 @@ button.room-link:not(.is-disabled):hover {
   border-radius: 50%;
   box-shadow:
     0 0 0 5px rgba(205, 126, 77, 0.09),
-    0 5px 16px rgba(126, 65, 40, 0.18);
+    0 5px 16px rgba(126, 65, 40, 0.18),
+    0 0 28px rgba(221, 164, 89, 0.2);
+  animation: hearth-ember 5.5s ease-in-out infinite;
+}
+
+@keyframes hearth-ember {
+  0%,
+  100% {
+    filter: saturate(0.94) brightness(0.98);
+    transform: scale(0.98);
+  }
+  50% {
+    filter: saturate(1.05) brightness(1.04);
+    transform: scale(1.02);
+  }
 }
 
 .ambient-weather strong,
@@ -660,13 +749,28 @@ button.room-link:not(.is-disabled):hover {
 }
 
 .return-card {
+  position: relative;
+  overflow: hidden;
   padding: 25px 27px 23px;
   margin-bottom: 20px;
   background:
-    linear-gradient(110deg, rgba(255, 255, 255, 0.4), transparent 48%),
-    #f7f2eb;
+    linear-gradient(110deg, rgba(255, 255, 255, 0.56), transparent 48%),
+    repeating-linear-gradient(0deg, rgba(112, 82, 57, 0.018) 0 1px, transparent 1px 5px),
+    var(--linen);
   border-radius: 20px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-raised);
+}
+
+.return-card::before {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 0;
+  width: 4px;
+  content: "";
+  background: linear-gradient(180deg, var(--copper), #8b4d35);
+  border-radius: 0 4px 4px 0;
+  box-shadow: 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .home-orientation-note {
@@ -752,7 +856,8 @@ button.room-link:not(.is-disabled):hover {
   min-width: 0;
   gap: 10px;
   padding: 12px 13px;
-  background: rgba(255, 255, 255, 0.48);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.66), rgba(248, 242, 233, 0.52));
   border: 1px solid rgba(134, 120, 104, 0.14);
   border-radius: 12px;
 }
@@ -845,6 +950,10 @@ button.room-link:not(.is-disabled):hover {
 
 .primary-button:hover {
   filter: brightness(1.045);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.2),
+    0 9px 19px rgba(129, 65, 41, 0.2);
+  transform: translateY(-1px);
 }
 
 .primary-button:disabled {
@@ -864,6 +973,49 @@ button.room-link:not(.is-disabled):hover {
 .panel {
   padding: 21px 22px;
   border-radius: 17px;
+}
+
+.home-room .panel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.43), transparent 58%),
+    var(--linen);
+  border-color: rgba(122, 98, 75, 0.19);
+  box-shadow: var(--shadow-settled);
+}
+
+.home-room .panel::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  border-radius: inherit;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.current-project-panel {
+  border-left: 3px solid rgba(165, 98, 61, 0.62) !important;
+}
+
+.household-panel {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.54), transparent 58%),
+    #edf0e8 !important;
+  border-color: rgba(75, 104, 88, 0.2) !important;
+}
+
+.keeps-panel {
+  background:
+    repeating-linear-gradient(0deg, rgba(112, 82, 57, 0.017) 0 1px, transparent 1px 5px),
+    var(--linen) !important;
+}
+
+.companion-access-panel {
+  background:
+    radial-gradient(circle at 100% 0, rgba(201, 150, 99, 0.14), transparent 35%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.48), transparent 60%),
+    #f5eee4 !important;
 }
 
 .panel h2 {
@@ -1123,7 +1275,8 @@ button.room-link:not(.is-disabled):hover {
 .project-facts > div {
   min-width: 0;
   padding: 10px 11px;
-  background: #f1ece5;
+  background: rgba(236, 229, 220, 0.78);
+  border: 1px solid rgba(130, 110, 88, 0.09);
   border-radius: 9px;
 }
 
@@ -1208,12 +1361,25 @@ button.room-link:not(.is-disabled):hover {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
-  border-top: 1px solid rgba(129, 112, 93, 0.12);
+  padding: 8px 9px;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(92, 111, 97, 0.11);
+  border-radius: 13px;
+  transition:
+    background-color var(--motion-gentle),
+    border-color var(--motion-gentle),
+    transform var(--motion-gentle);
 }
 
 .household-member:first-child {
-  border-top: 0;
+  margin-top: 0;
+}
+
+.household-member:hover {
+  background: rgba(255, 255, 255, 0.58);
+  border-color: rgba(92, 111, 97, 0.2);
+  transform: translateX(2px);
 }
 
 .avatar {
@@ -1230,9 +1396,12 @@ button.room-link:not(.is-disabled):hover {
 }
 
 .household-member .avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  box-shadow:
+    0 5px 13px rgba(54, 46, 39, 0.15),
+    inset 0 0 0 1px rgba(57, 49, 43, 0.1);
 }
 
 .resident-avatar {
@@ -12666,6 +12835,18 @@ button.room-link:not(.is-disabled):hover {
 
   .truth-item:last-child {
     grid-column: span 2;
+  }
+
+  .home-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .household-panel .panel-heading {
+    align-items: center;
+  }
+
+  .household-panel .panel-heading h2 {
+    max-width: none;
   }
 
   .workshop-room {
