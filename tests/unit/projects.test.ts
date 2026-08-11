@@ -403,8 +403,9 @@ describe("ProjectManager bounded project review", () => {
     let store = await openTestStore(dataDirectory, projectRoot);
     let projects = new ProjectManager(store, homeRoot, projectRoot);
     const catalog = await projects.list();
+    const canonicalProjectRoot = await realpath(projectRoot);
     const project = catalog.projects.find(
-      (candidate) => candidate.rootPath === projectRoot
+      (candidate) => candidate.rootPath === canonicalProjectRoot
     )!;
     const draft = await projects.prepareEdit(
       project.id,
