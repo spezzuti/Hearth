@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.50.0 implementation described in
+This roadmap starts from the real Hearth 0.51.0 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -120,22 +120,23 @@ This extends the existing Workshop counter rather than inventing a second contex
 will retain locally, and which continuity choices are available without confusing characters for
 tokens or claiming visibility into provider-private state.
 
-## Phase 3 — grounded Library and project references
+## Phase 3 — grounded Library and project references delivered in 0.51.0
 
 This combines Hermes-style source grounding with Buzz-style entity cards.
 
-- Recognize repository, pull request, issue, release, commit, and ordinary web references during
+- Recognizes repository, pull request, issue, release, commit, and ordinary web references during
   capture without fetching private-network destinations.
-- Store canonical URL, source kind, title, repository/project relationship, retrieval time, and
+- Stores canonical URL, source kind, title, repository/project relationship, retrieval time, and
   bounded public metadata.
-- Render calm reference cards in Library, Study handoffs, Living Room context, and Archive detail.
-- Require Librarian research claims to point to the supplied source records. Distinguish direct
+- Renders calm reference cards in Library, Study handoffs, Living Room context, and Archive detail.
+- Requires Librarian research claims to point to the supplied source records. Distinguishes direct
   evidence, inference, recommendation, and unverified metadata.
-- Verify quotations against retrieved page text before presenting them as quotations.
-- Preserve the current rule that Librarian cannot clone, install, save, dismiss, edit, or execute
+- Treats no title or description as verified quotation text. Until bounded page-body records exist,
+  Librarian is explicitly forbidden from presenting verbatim quotations.
+- Preserves the current rule that Librarian cannot clone, install, save, dismiss, edit, or execute
   through conversation.
 
-**Exit:** a recommendation explains why it is present and where the supporting fact came from, while
+**Exit met:** a recommendation explains why it is present and where the supporting fact came from, while
 Hearth remains a home base rather than an embedded browser or GitHub replacement.
 
 ## Phase 4 — supervised House Practices

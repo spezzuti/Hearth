@@ -17,6 +17,7 @@ import type {
 } from "../../shared/contracts";
 import { ResidentAvatar } from "./ResidentAvatar";
 import { residentProviderLabel } from "./provider-label";
+import { ReferenceCard } from "./ReferenceCard";
 
 const RESIDENTS: Array<{
   id: AgentKey;
@@ -434,6 +435,10 @@ export function LivingRoom({
     }
   }
 
+  const activeReference = activeThread?.context?.sourceId
+    ? data.captures.find((item) => item.id === activeThread.context?.sourceId)?.reference ?? null
+    : null;
+
   return (
     <main className="room-content living-room">
       <header className="living-heading">
@@ -645,6 +650,13 @@ export function LivingRoom({
               <p className="eyebrow">Brought into the room</p>
               <strong>{activeThread.context.label}</strong>
               <p>{activeThread.context.summary}</p>
+              {activeReference ? (
+                <ReferenceCard
+                  compact
+                  reference={activeReference}
+                  onOpen={() => void window.hearth.openExternal(activeReference.canonicalUrl)}
+                />
+              ) : null}
               <small>Visible to everyone called into this discussion. Private chats and terminal output stay out.</small>
             </section>
           ) : null}

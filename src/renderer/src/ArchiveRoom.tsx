@@ -9,6 +9,7 @@ import type {
   Room,
   WorkspaceProjectSummary
 } from "../../shared/contracts";
+import { ReferenceCard } from "./ReferenceCard";
 
 const FILTERS: Array<{
   kind: ArchiveKind | "all";
@@ -395,6 +396,12 @@ export function ArchiveRoom({
               <div className="archive-detail-body">
                 <h2>{selected.title}</h2>
                 <p className="archive-detail-summary">{selected.summary}</p>
+                {selected.reference ? (
+                  <ReferenceCard
+                    reference={selected.reference}
+                    onOpen={() => void window.hearth.openExternal(selected.reference!.canonicalUrl)}
+                  />
+                ) : null}
                 {selected.projectName || selected.path ? (
                   <div className="archive-context">
                     {selected.projectName ? <strong>{selected.projectName}</strong> : null}

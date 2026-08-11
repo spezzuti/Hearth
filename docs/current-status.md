@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.50.0. It records the Phase 2 context inspector
-and durable continuity work completed and verified on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.51.0. It records the Phase 3 grounded
+reference work completed and verified on Windows on 2026-08-11.
 
 ## What is already working
 
@@ -38,10 +38,38 @@ and explicit milestone records resume with 0.48.0:
 | 0.48.0 | Dependency trust baseline, isolated runtime upgrades, Windows CI, and truthful provider identity. |
 | 0.49.0 | Activity-aware managed turns, explicit recovery fate, per-turn usage, and Provider Doctor. |
 | 0.49.1 | Long-tool health renewal, truthful adapter-loss state, permission cleanup, and a repeatable packaged health drill. |
-| 0.50.0 current | Persisted per-turn context manifests, provider/local accounting separation, and threshold-aware continuity choices. |
+| 0.50.0 | Persisted per-turn context manifests, provider/local accounting separation, and threshold-aware continuity choices. |
+| 0.51.0 current | Typed canonical references, bounded public metadata, calm cross-room source cards, and Librarian citation rules. |
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
+
+## Phase 3 outcome
+
+### Typed, canonical references
+
+- Capture recognizes ordinary web pages plus GitHub repositories, pull requests, issues, releases,
+  and commits before any network request. Common tracking parameters and fragments are removed from
+  the canonical record, so equivalent links deduplicate cleanly.
+- Each saved link carries a typed source record with canonical URL, host, repository identity,
+  retrieval state and time, and bounded public title, description, language, topics, and star data
+  when available.
+- Public enrichment retains the existing private-network and redirect checks, adds strict JSON size
+  and time limits for GitHub's public API, and never sends credentials or fetches a private-network
+  destination.
+
+### Grounded surfaces and conversation
+
+- The same quiet source card appears in Library, connected project notes, gathered Living Room
+  context, and Archive detail. It states whether details were retrieved, failed, or remain
+  unverified rather than blurring saved URLs with fetched facts.
+- Librarian receives stable source IDs for saved records and separate recommendation IDs for
+  discovery. Her contract requires factual claims to cite those records and to label inference,
+  recommendation, and unverified metadata honestly.
+- Hearth currently supplies no verified page-body quotations. Titles and descriptions remain
+  metadata, and Librarian is explicitly forbidden from presenting them as verbatim quotations.
+- Librarian remains advisory: conversation cannot clone, install, save, dismiss, edit, verify, or
+  execute an item.
 
 ## Phase 2 outcome
 
@@ -149,11 +177,11 @@ two-hour absolute ceiling is intentionally not waited out in automation.
 
 ## Current quality signal
 
-- Type checking, 110 unit tests across 15 files, the production build, and all 13 serial Electron
-  scenarios pass for 0.50.0. The rebuilt 0.50.0 Claude/Codex packaged baseline also passes; the
+- Type checking, 112 unit tests across 15 files, the production build, and all 13 serial Electron
+  scenarios pass for 0.51.0. The rebuilt 0.50.0 Claude/Codex packaged baseline also passes; the
   0.49.1 destructive health drill remains the latest runtime-failure evidence.
-- The 0.50.0 Electron run exercised context inspection, migration persistence, compact containment,
-  continuity, containment, real ConPTY behavior, handoffs, Living Room,
+- The 0.51.0 Electron run exercised canonical reference capture, Library and Study cards, context
+  inspection, migration persistence, compact containment, continuity, real ConPTY behavior, handoffs, Living Room,
   project-scoped conversations, reload/relaunch, and responsive layouts.
 - Project discovery and edit recovery now compare canonical Windows paths, so short-path aliases such
   as `RUNNER~1` cannot make Hearth reject its own bounded recovery files. Project tests also close

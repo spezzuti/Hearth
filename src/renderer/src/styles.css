@@ -7422,6 +7422,100 @@ button.room-link:not(.is-disabled):hover {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 5;
 }
+
+.reference-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 11px 12px;
+  color: #514b47;
+  background: linear-gradient(145deg, rgba(255, 253, 248, 0.94), rgba(235, 239, 234, 0.9));
+  border: 1px solid rgba(102, 124, 113, 0.22);
+  border-radius: 10px;
+}
+
+.reference-card > header,
+.reference-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 8px;
+}
+
+.reference-card > header > span {
+  color: #6c7d75;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reference-card > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #3e4b47;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-card > p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #6a6661;
+  font-size: 10.5px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.reference-state {
+  color: #927a62;
+  font-size: 8.5px;
+  white-space: nowrap;
+}
+
+.reference-state--retrieved { color: #557a68; }
+.reference-state--failed { color: #a46057; }
+
+.reference-card > footer > span {
+  min-width: 0;
+  overflow: hidden;
+  color: #7d7771;
+  font: 8.5px/1.3 "Cascadia Mono", Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-card > footer > button {
+  flex: 0 0 auto;
+  padding: 0;
+  color: #a45e43;
+  font-size: 9px;
+  font-weight: 800;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.reference-card--compact {
+  gap: 5px;
+  padding: 8px 9px;
+}
+
+.reference-card--compact > footer { border: 0; padding: 0; }
+
+.project-reference-card {
+  display: grid;
+  gap: 6px;
+}
+
+.project-reference-card > small {
+  color: #8c837b;
+  font-size: 9px;
+}
 .library-tags {
   display: flex;
   flex-wrap: wrap;

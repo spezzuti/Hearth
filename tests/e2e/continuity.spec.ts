@@ -1154,7 +1154,7 @@ test.describe.serial("continuity vertical slice", () => {
       const ideaText = "Sketch a voice-first project review flow.";
       const noteText = "Keep the resize review aligned with the terminal.";
       const projectNoteText = "Check the mobile decision surface after the next desktop pass.";
-      const linkUrl = "https://example.com/hearth-workflow-reference";
+      const linkUrl = "https://github.com/microsoft/terminal/issues/123?utm_source=hearth";
 
       await capture.fill(`@idea ${ideaText} #voice #review`);
       await capture.press("Enter");
@@ -1218,6 +1218,11 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(routedLink).toContainText("workflow");
       await expect(routedLink).toContainText("Review Project");
       await expect(routedLink).toContainText("Unfiled");
+      await expect(routedLink.locator(".reference-card")).toContainText("Issue");
+      await expect(routedLink.locator(".reference-card")).toContainText(
+        "https://github.com/microsoft/terminal/issues/123"
+      );
+      await expect(routedLink.locator(".reference-card")).not.toContainText("utm_source");
       await routedLink.getByRole("button", { name: "Edit" }).click();
       await routedLink.getByLabel("Collection").fill("Workflow");
       await routedLink.getByRole("button", { name: "Save" }).click();
@@ -1277,6 +1282,9 @@ test.describe.serial("continuity vertical slice", () => {
       await running.page.locator(".project-list-item").filter({ hasText: "Review Project" }).click();
       await running.page.getByRole("button", { name: /^Notes/ }).click();
       await expect(running.page.locator(".project-note-card").filter({ hasText: noteText })).toBeVisible();
+      await expect(running.page.locator(".project-reference-card")).toContainText(
+        "microsoft/terminal"
+      );
       const projectNote = running.page.getByPlaceholder(/Remember something about Review Project/);
       await projectNote.fill(projectNoteText);
       await running.page.getByRole("button", { name: "Keep note" }).click();

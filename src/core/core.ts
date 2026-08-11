@@ -887,8 +887,22 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
       if (!capture || capture.kind !== "link") {
         throw new Error("That Library link is no longer available.");
       }
-      const metadata = await enrichLink(capture.text);
-      return store.applyCaptureMetadata(capture.id, metadata);
+      try {
+        const metadata = await enrichLink(capture.text);
+        return store.applyCaptureMetadata(capture.id, metadata);
+      } catch (error) {
+        if (capture.reference) {
+          store.applyCaptureMetadata(capture.id, {
+            title: null,
+            description: null,
+            reference: {
+              ...capture.reference,
+              metadataState: "failed"
+            }
+          });
+        }
+        throw error;
+      }
     }
     case "refreshLibraryDiscovery": {
       const selected = projects.selectedProject();

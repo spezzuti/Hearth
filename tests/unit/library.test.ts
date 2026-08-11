@@ -8,6 +8,7 @@ import {
   isRelevantDiscoveryItem
 } from "../../src/core/library-discovery";
 import { isPublicAddress, parseLinkMetadata } from "../../src/core/link-metadata";
+import { recognizeReference, referenceLabel } from "../../src/core/references";
 import type { WorkspaceProjectDetail } from "../../src/shared/contracts";
 
 describe("Library link boundaries", () => {
@@ -34,6 +35,56 @@ describe("Library link boundaries", () => {
     expect(isPublicAddress("::1")).toBe(false);
     expect(isPublicAddress("8.8.8.8")).toBe(true);
     expect(isPublicAddress("2606:4700:4700::1111")).toBe(true);
+  });
+
+  it("recognizes canonical GitHub entities without fetching them", () => {
+    const repository = recognizeReference(
+      "http://github.com/OpenAI/Codex.git/?utm_source=feed#readme"
+    );
+    expect(repository).toMatchObject({
+      kind: "repository",
+      canonicalUrl: "https://github.com/OpenAI/Codex",
+      owner: "OpenAI",
+      repository: "Codex",
+      metadataState: "unverified"
+    });
+    expect(referenceLabel(repository!)).toBe("OpenAI/Codex");
+
+    expect(recognizeReference("https://github.com/openai/codex/pull/123?ref_src=test")).toMatchObject({
+      kind: "pull-request",
+      canonicalUrl: "https://github.com/openai/codex/pull/123",
+      identifier: "123"
+    });
+    expect(recognizeReference("https://github.com/openai/codex/issues/42#discussion")).toMatchObject({
+      kind: "issue",
+      identifier: "42"
+    });
+    expect(recognizeReference("https://github.com/openai/codex/releases/tag/v1.2.3")).toMatchObject({
+      kind: "release",
+      identifier: "v1.2.3"
+    });
+    expect(recognizeReference("https://github.com/openai/codex/commit/abcdef123456")).toMatchObject({
+      kind: "commit",
+      identifier: "abcdef123456"
+    });
+    expect(
+      recognizeReference(
+        "https://github.com/openai/codex/blob/main/README.md?utm_source=test#usage"
+      )
+    ).toMatchObject({
+      kind: "web",
+      canonicalUrl: "https://github.com/openai/codex/blob/main/README.md"
+    });
+  });
+
+  it("keeps ordinary web references canonical while removing tracking", () => {
+    expect(
+      recognizeReference("https://Example.com/guide/?b=2&utm_campaign=test&a=1#part")
+    ).toMatchObject({
+      kind: "web",
+      canonicalUrl: "https://example.com/guide?a=1&b=2",
+      host: "example.com"
+    });
   });
 });
 

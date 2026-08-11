@@ -66,6 +66,7 @@ import { HouseMemoryDialog } from "./HouseMemoryDialog";
 import { ResidentAvatar } from "./ResidentAvatar";
 import { residentProviderLabel } from "./provider-label";
 import { LivingRoom } from "./LivingRoom";
+import { ReferenceCard } from "./ReferenceCard";
 
 interface AgentStreamView {
   requestId: string;
@@ -1759,6 +1760,13 @@ function LibraryRoom({
                 ) : (
                   <>
                     <h2>{item.title ?? item.domain ?? item.text.slice(0, 80)}</h2>
+                    {item.reference ? (
+                      <ReferenceCard
+                        reference={item.reference}
+                        compact
+                        onOpen={() => void window.hearth.openExternal(item.reference!.canonicalUrl)}
+                      />
+                    ) : null}
                     <p className="library-item-copy">
                       {item.description ?? item.text}
                     </p>
@@ -5359,7 +5367,13 @@ export function App(): ReactNode {
             onGather={(item) => void gatherInLivingRoom({
               kind: "library",
               label: item.title ?? item.domain ?? "Library item",
-              summary: [item.description, item.text, item.tags.length ? `Tags: ${item.tags.join(", ")}` : null]
+              summary: [
+                item.description,
+                item.reference
+                  ? `${item.reference.kind} · ${item.reference.canonicalUrl} · ${item.reference.metadataState === "retrieved" ? "public details retrieved" : "details unverified"}`
+                  : item.text,
+                item.tags.length ? `Tags: ${item.tags.join(", ")}` : null
+              ]
                 .filter(Boolean)
                 .join("\n")
                 .slice(0, 4_000),

@@ -521,6 +521,34 @@ describe("HearthStore continuity contract", () => {
     expect(enriched.description).toBe("The short list worth returning to.");
     expect(enriched.metadataFetchedAt).not.toBeNull();
 
+    const github = store.saveCapture(
+      "https://github.com/openai/codex/issues/42?utm_source=feed"
+    );
+    const githubDuplicate = store.saveCapture(
+      "https://github.com/openai/codex/issues/42#discussion"
+    );
+    expect(githubDuplicate).toMatchObject({ duplicate: true });
+    expect(github.capture.reference).toMatchObject({
+      kind: "issue",
+      canonicalUrl: "https://github.com/openai/codex/issues/42",
+      metadataState: "unverified"
+    });
+    expect(
+      store.applyCaptureMetadata(github.capture.id, {
+        title: null,
+        description: null,
+        reference: {
+          ...github.capture.reference!,
+          metadataState: "failed"
+        }
+      }).reference
+    ).toMatchObject({ metadataState: "failed" });
+    expect(store.searchCaptures("issue", "link")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: github.capture.id })
+      ])
+    );
+
     store.updateCapture(first.capture.id, { archived: true, pinned: false });
     const restored = store.updateCapture(first.capture.id, { archived: false });
     expect(restored.archived).toBe(false);
@@ -1001,6 +1029,15 @@ describe("HearthStore continuity contract", () => {
     );
     expect(store.getLibrarianEvidence("terminal agent")).toContain(
       "anomalyco/opencode"
+    );
+    expect(store.getLibrarianEvidence("terminal agent")).toContain(
+      "GROUNDING CONTRACT"
+    );
+    expect(store.getLibrarianEvidence("terminal agent")).toContain(
+      "recommendation"
+    );
+    expect(store.getLibrarianEvidence("terminal agent")).toContain(
+      "canonicalUrl"
     );
 
     const restored = store.setLibraryDiscoveryFeedback("github-skills", "none");

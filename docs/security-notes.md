@@ -210,7 +210,13 @@
 - Captures remain local unless the user saves a public link or opens the discovery shelf.
 - Exact normalized HTTP and HTTPS links are deduplicated; saving an archived link restores it
   instead of creating a second copy.
-- Link enrichment is limited to titles and descriptions from capped HTML responses.
+- Reference recognition is local and side-effect free. It canonicalizes ordinary web URLs and
+  identifies GitHub repositories, pull requests, issues, releases, and commits without fetching.
+- Common tracking parameters and fragments are removed from the canonical source record. URLs with
+  embedded credentials are rejected.
+- Link enrichment is limited to titles and descriptions from capped HTML responses. GitHub entity
+  enrichment uses only bounded public API records for the recognized entity and is capped at 256
+  KiB with no redirects.
 - Enrichment rejects credentials, localhost, `.local` names, private IPv4 ranges, loopback,
   link-local addresses, and private IPv6 ranges before every request and redirect.
 - Link enrichment has a six-second timeout, a 384 KiB body limit, and at most three redirects.
@@ -228,6 +234,10 @@
 - Catalog titles, notes, descriptions, tags, URLs, and recommendation metadata are explicitly
   delimited as untrusted data. Librarian has no tools and cannot open, install, clone, save, edit,
   dismiss, or verify an item through conversation.
+- Saved and retrieved records receive stable source IDs; discovery receives separate recommendation
+  IDs. Librarian must cite factual source claims and label recommendations, inferences, and
+  unverified metadata. Hearth does not currently supply verified page-body quotation text, so titles
+  and descriptions cannot be presented as verbatim quotations.
 - Librarian uses a fresh, non-persisted Claude Code print-mode call with safe mode, no tools, a
   timeout, and the same per-call budget ceiling as other household reasoning. The local retrieval
   personality remains available if Claude is disabled, unavailable, stopped, or degraded.

@@ -22,6 +22,7 @@ import type {
   WorkspaceProjectDetail,
   WorkspaceProjectSummary
 } from "../../shared/contracts";
+import { ReferenceCard } from "./ReferenceCard";
 
 function classNames(...names: Array<string | false | null | undefined>): string {
   return names.filter(Boolean).join(" ");
@@ -229,6 +230,18 @@ export function ProjectSurface({
           note.kind === "note" &&
           !note.archived &&
           note.workspaceProjectId === selectedProject?.id
+      ),
+    [notes, selectedProject?.id]
+  );
+
+  const projectReferences = useMemo(
+    () =>
+      notes.filter(
+        (item) =>
+          item.kind === "link" &&
+          !item.archived &&
+          item.workspaceProjectId === selectedProject?.id &&
+          item.reference
       ),
     [notes, selectedProject?.id]
   );
@@ -788,7 +801,7 @@ export function ProjectSurface({
             type="button"
             onClick={() => setMode("notes")}
           >
-            Notes <span>{projectNotes.length}</span>
+            Notes & refs <span>{projectNotes.length + projectReferences.length}</span>
           </button>
           <div className="project-browser__tools">
             <button
@@ -1061,7 +1074,16 @@ export function ProjectSurface({
                   </div>
                 </article>
               ))}
-              {!projectNotes.length ? (
+              {projectReferences.map((item) => (
+                <article className="project-reference-card" key={item.id}>
+                  <ReferenceCard
+                    reference={item.reference!}
+                    onOpen={() => void window.hearth.openExternal(item.reference!.canonicalUrl)}
+                  />
+                  <small>Connected Library reference · read-only here</small>
+                </article>
+              ))}
+              {!projectNotes.length && !projectReferences.length ? (
                 <div className="project-empty project-note-empty">
                   <span>✎</span>
                   <h3>No notes left with this project yet</h3>

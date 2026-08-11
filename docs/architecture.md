@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.50.0 implementation. It is an implementation map, not a
+This document describes the current 0.51.0 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model
@@ -47,6 +47,7 @@ The core owns durable state and capabilities:
 - ConPTY creation, attachment, input, resize, ownership, and shutdown
 - resident prompting, ACP sessions, cancellation, and fallback routing
 - Library discovery and link metadata retrieval
+- typed web and GitHub reference recognition, canonicalization, and bounded public enrichment
 - Living Room turn orchestration
 - PersonalOS Stacks read-only import
 
@@ -136,6 +137,7 @@ SQLite WAL stores:
 - discovered-project metadata and current selection;
 - resident and Living Room conversations;
 - captures, collections, idea decisions, notes, and Archive state;
+- canonical reference records, retrieval state, bounded public metadata, and project connections;
 - approved House Memory and dismissed suggestions;
 - managed Workshop summaries, plans, activities, token state, context manifests, and session identity;
 - Return Packs and bounded execution reports;
@@ -156,7 +158,8 @@ Hearth has four intentional network paths:
 
 1. installed Claude Code and Codex providers using their own authenticated clients;
 2. public GitHub repository discovery;
-3. guarded HTTP/HTTPS title and description enrichment for a user-saved public link;
+3. guarded HTTP/HTTPS title and description enrichment plus bounded public GitHub entity metadata
+   for a user-saved reference;
 4. opt-in Companion access over loopback or private Tailscale HTTPS.
 
 The renderer does not load remote scripts, styles, images, or arbitrary pages. Hearth has no
@@ -169,6 +172,7 @@ telemetry service.
 | Contracts | `src/shared/contracts.ts` |
 | Core dispatch | `src/core/core.ts` |
 | Persistence | `src/core/store.ts` |
+| Reference recognition | `src/core/references.ts`, `src/core/link-metadata.ts` |
 | Claude ACP | `src/core/claude-acp-runtime.ts` |
 | Codex ACP | `src/core/codex-acp-runtime.ts` |
 | Provider routing | `src/core/agent-provider.ts` |

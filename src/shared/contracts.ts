@@ -1155,6 +1155,33 @@ export interface CaptureRecord {
   createdAt: string;
   updatedAt: string;
   metadataFetchedAt: string | null;
+  reference: LibraryReference | null;
+}
+
+export type ReferenceKind =
+  | "web"
+  | "repository"
+  | "pull-request"
+  | "issue"
+  | "release"
+  | "commit";
+
+export interface LibraryReference {
+  id: string;
+  kind: ReferenceKind;
+  canonicalUrl: string;
+  host: string;
+  owner: string | null;
+  repository: string | null;
+  identifier: string | null;
+  title: string | null;
+  description: string | null;
+  metadataState: "unverified" | "retrieved" | "failed";
+  stars: number | null;
+  language: string | null;
+  topics: string[];
+  sourceUpdatedAt: string | null;
+  retrievedAt: string | null;
 }
 
 export interface CaptureSaveResult {
@@ -1356,6 +1383,7 @@ export interface ArchiveItem {
     consequence: string;
   };
   createdAt: string;
+  reference?: LibraryReference | null;
 }
 
 export interface ArchiveSnapshot {
