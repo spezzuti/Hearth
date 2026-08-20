@@ -1,7 +1,8 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.59.6. It records the completed whole-house
-environmental, Companion, and unified Workshop pass, verified on Windows on 2026-08-18.
+This is the current engineering snapshot for Hearth 0.60.2. It records the completed whole-house
+environmental, Companion, unified Workshop, and release-hardening pass, verified on Windows on
+2026-08-20.
 
 ## What is already working
 
@@ -58,7 +59,8 @@ and explicit milestone records resume with 0.48.0:
 | 0.59.3 | Removed the split managed/native Workshop surfaces. The main workbench is now the real Claude Code TUI, with Maker beside the same visible session. |
 | 0.59.4 | Scoped stored and resumable Workshop sessions by project path. A live cross-project session now stays attached to its original project and presents explicit stay-or-park choices. |
 | 0.59.5 | Repaired project activation as an atomic park-select-load transition, separated Study browsing from working-project selection, and made the explicit saved project authoritative over stray activity from an older terminal. |
-| 0.59.6 current | Serialized overlapping project activations, preserved newest bounded conversations, stabilized intentional terminal stops and destructive Archive removal, and bounded superseded lifecycle metadata. |
+| 0.59.6 | Serialized overlapping project activations, preserved newest bounded conversations, stabilized intentional terminal stops and destructive Archive removal, and bounded superseded lifecycle metadata. |
+| 0.60.2 current | Finalized the stable treaded Companion gaze system, reconciled the canonical source tree, hardened public-link retrieval against reserved networks and DNS rebinding, and exposed explicit local recovery controls. |
 
 After the 0.57.0 Living Room proof, the same environmental standard was applied selectively across
 Home, Study, Workshop, Library, Studio, and Archive. Hearth 0.58.0 records that work and the final
@@ -265,20 +267,30 @@ an underlying model the adapter did not disclose.
 
 ## Release evidence
 
-The 0.49.1 unpacked Windows app passed a live Claude/Codex baseline and a repeatable health drill.
+The 0.60.2 unpacked Windows app passed a live Claude/Codex baseline and the repeatable health drill.
 A real Claude tool remained healthy beyond the compressed ten-second test idle threshold, exposed
 quiet, permission-wait, and completed states, and reported Claude Opus 5 usage. The drill then killed
 the exact Claude ACP adapter descendant and verified a stopped process, `connection_lost` fate, and
 no automatic replay. A final close/relaunch with a pending write permission verified that the turn
 became interrupted, the permission queue was empty, and the unapproved file was never created.
 
+The packaged Workshop also passed a real Claude Code TUI check for Shift+Tab mode cycling, focus
+return from Maker's notebook, native in-flight steering, and the absence of a duplicate Maker
+composer. The live resident check independently confirmed Claude Code over ACP for Maker, Codex over
+ACP for Critic, plan/manual switching, streamed tool detail, and reported token usage.
+
+Active packaged measurements ranged from roughly 776–838 MB across Electron's browser, GPU,
+network, local core, and tab processes during automated discovery and live-provider work. This is a
+release baseline, not yet a final idle-memory budget; idle soak and lower-end Windows measurements
+remain required before a broad public launch.
+
 This proves the state transitions and cleanup path under compressed test timings. The production
 two-hour absolute ceiling is intentionally not waited out in automation.
 
 ## Current quality signal
 
-- Both dependency audits, type checking, 121 unit tests across 17 files, the production build, and
-  all 16 serial Electron scenarios pass for 0.59.6. The packaged x64 build also passes
+- Both dependency audits, type checking, 124 unit tests across 17 files, the production build, and
+  all 16 serial Electron scenarios form the 0.60.2 gate. The packaged x64 build also exercises
   project discovery, tray close/relaunch, and real ConPTY input/output; the 0.49.1 destructive
   health drill remains the latest runtime-failure evidence.
 - The 0.58.0 Electron run exercised the complete practice review lifecycle, canonical reference
@@ -290,8 +302,12 @@ two-hour absolute ceiling is intentionally not waited out in automation.
   SQLite handles before removing their isolated workspaces.
 - A stopped terminal can be reopened from the always-visible footer, so compact Workshop layouts do
   not depend on the hidden session shelf to start a fresh PowerShell session.
-- The current rebuilt package passed both the local ConPTY smoke and the optional live Claude/Codex
-  ACP smoke. Those remain required whenever provider, interruption, context, or permissions change.
+- The current rebuilt package passed the local ConPTY smoke, live Claude/Codex ACP smoke, native
+  Claude Code mode and steering smoke, and the destructive isolated health drill. Those remain
+  required whenever provider, interruption, context, or permissions change.
+- The locally built NSIS installer is suitable for owner testing but is not a public release:
+  Authenticode reports `NotSigned`. The tag workflow refuses publication until signing credentials
+  are configured and the resulting installer verifies as `Valid`.
 
 The implementation plan for these findings and the selected Buzz/Hermes ideas is in
 [roadmap.md](roadmap.md).

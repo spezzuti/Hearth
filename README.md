@@ -11,7 +11,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.59.6. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 release candidate, version 0.60.2. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
@@ -212,7 +212,7 @@ database.
 | `npm run test:packaged:health` | Run the live long-tool and provider-failure release drill |
 | `npm run package` | Build the Windows NSIS installer |
 
-The current release gate covers 121 unit tests across 17 files and 16 serial Electron scenarios,
+The current release gate covers 124 unit tests across 17 files and 16 serial Electron scenarios,
 including renderer reload, relaunch, ConPTY lifecycle, project containment, bounded edits, resident
 handoffs, Living Room orchestration, compact layouts, archive recovery, and the managed Workshop.
 The packaged smoke additionally exercises the unpacked binary, real PTY, and optional live ACP
@@ -237,7 +237,8 @@ permission across close and relaunch.
 
 - Windows x64 only; macOS, Linux, and Windows ARM are not supported.
 - Pre-1.0 data migrations are tested, but long-term compatibility is not yet promised.
-- No automatic updater or published installer release yet.
+- Updates are deliberate manual installs during the pre-1.0 period; the signed tagged-release workflow
+  refuses to publish an installer unless Windows verifies its Authenticode signature.
 - The visual system and defaults were designed around one primary workflow and still need broader
   accessibility and first-run testing.
 - PersonalOS Stacks import is a deliberately narrow legacy bridge, not a general importer.
@@ -250,6 +251,8 @@ permission across close and relaunch.
 - [Roadmap](docs/roadmap.md) — the integrated hardening and product plan
 - [Architecture](docs/architecture.md) — processes, providers, persistence, and data flow
 - [Security Notes](docs/security-notes.md) — detailed capability and trust boundaries
+- [Release Process](docs/release-process.md) — signed Windows build, publication, and rollback gates
+- [Changelog](CHANGELOG.md) — user-visible changes by version
 - [Contributing](CONTRIBUTING.md) — development workflow and design constraints
 - [Claude Code Project Guide](CLAUDE.md) — repository instructions for Claude Code
 - [Architecture decisions](docs/adr/) — why the major boundaries exist

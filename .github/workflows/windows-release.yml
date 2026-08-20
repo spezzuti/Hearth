@@ -1,0 +1,100 @@
+name: Signed Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Require matching package version
+        shell: pwsh
+        run: |
+          $packageVersion = (Get-Content package.json | ConvertFrom-Json).version
+          $tagVersion = "${{ github.ref_name }}".TrimStart('v')
+          if ($packageVersion -ne $tagVersion) {
+            throw "Tag $tagVersion does not match package version $packageVersion."
+          }
+
+      - name: Require signing credentials
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK) -or [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
+            throw "Configure CSC_LINK and CSC_KEY_PASSWORD before publishing Hearth."
+          }
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit all locked dependencies
+        run: npm audit --audit-level=moderate
+
+      - name: Run complete source verification
+        run: npm run verify
+        env:
+          CI: "true"
+
+      - name: Build signed NSIS installer
+        run: npm run package
+
+      - name: Verify Authenticode and write checksum
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem release -Filter "Hearth Setup *.exe")
+          if ($installers.Count -ne 1) { throw "Expected one installer, found $($installers.Count)." }
+          $installer = $installers[0]
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          if ($signature.Status -ne 'Valid') {
+            throw "Installer signature is $($signature.Status), not Valid."
+          }
+          $hash = Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
+          "$($hash.Hash)  $($installer.Name)" | Set-Content -Encoding ascii release\SHA256SUMS.txt
+
+      - name: Preserve signed release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: hearth-${{ github.ref_name }}-windows-x64
+          path: |
+            release/Hearth Setup *.exe
+            release/Hearth Setup *.exe.blockmap
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = @(Get-ChildItem release -Filter "Hearth Setup *.exe")[0]
+          $blockmap = @(Get-ChildItem release -Filter "Hearth Setup *.exe.blockmap")[0]
+          gh release create "${{ github.ref_name }}" `
+            --verify-tag `
+            --prerelease `
+            --generate-notes `
+            --title "Hearth ${{ github.ref_name }}" `
+            $installer.FullName `
+            $blockmap.FullName `
+            "release/SHA256SUMS.txt"

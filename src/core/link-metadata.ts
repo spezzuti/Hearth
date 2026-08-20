@@ -1,4 +1,6 @@
-import { isIP } from "node:net";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { isIP, type LookupFunction } from "node:net";
 import { lookup } from "node:dns/promises";
 import type { LibraryReference } from "../shared/contracts";
 import { recognizeReference, withReferenceMetadata } from "./references";
@@ -15,10 +17,14 @@ function isPrivateIpv4(address: string): boolean {
     first === 0 ||
     first === 10 ||
     first === 127 ||
+    (first === 100 && second !== undefined && second >= 64 && second <= 127) ||
     (first === 169 && second === 254) ||
     (first === 172 && second !== undefined && second >= 16 && second <= 31) ||
+    (first === 192 && second === 0) ||
     (first === 192 && second === 168) ||
-    first === 224 ||
+    (first === 198 && second !== undefined && second >= 18 && second <= 19) ||
+    (first !== undefined && first >= 224 && first <= 239) ||
+    (first !== undefined && first >= 240 && first <= 255) ||
     first === 255
   );
 }
@@ -33,7 +39,9 @@ export function isPublicAddress(address: string): boolean {
     normalized === "::1" ||
     normalized.startsWith("fc") ||
     normalized.startsWith("fd") ||
-    /^fe[89ab]/.test(normalized)
+    /^fe[89ab]/.test(normalized) ||
+    normalized.startsWith("ff") ||
+    normalized.startsWith("2001:db8:")
   ) {
     return false;
   }
@@ -41,7 +49,10 @@ export function isPublicAddress(address: string): boolean {
   return mapped?.[1] ? !isPrivateIpv4(mapped[1]) : true;
 }
 
-async function assertPublicUrl(candidate: string): Promise<URL> {
+async function resolvePublicUrl(candidate: string): Promise<{
+  url: URL;
+  address: { address: string; family: 4 | 6 };
+}> {
   const url = new URL(candidate);
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("Hearth only reads details from HTTP or HTTPS links.");
@@ -59,13 +70,89 @@ async function assertPublicUrl(candidate: string): Promise<URL> {
     if (!isPublicAddress(url.hostname)) {
       throw new Error("Hearth will not request details from a private address.");
     }
-    return url;
+    return {
+      url,
+      address: { address: url.hostname, family: isIP(url.hostname) as 4 | 6 }
+    };
   }
   const addresses = await lookup(url.hostname, { all: true, verbatim: true });
   if (!addresses.length || addresses.some((item) => !isPublicAddress(item.address))) {
     throw new Error("Hearth will not request details from a private address.");
   }
-  return url;
+  const selected = addresses[0]!;
+  return {
+    url,
+    address: { address: selected.address, family: selected.family as 4 | 6 }
+  };
+}
+
+interface BoundedResponse {
+  status: number;
+  headers: Record<string, string | string[] | undefined>;
+  body: Buffer;
+}
+
+async function requestPublic(
+  candidate: string,
+  accept: string,
+  maxBytes: number
+): Promise<{ url: URL; response: BoundedResponse }> {
+  const { url, address } = await resolvePublicUrl(candidate);
+  const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
+    if (options.all) {
+      callback(null, [address]);
+      return;
+    }
+    callback(null, address.address, address.family);
+  };
+  const request = url.protocol === "https:" ? httpsRequest : httpRequest;
+  const response = await new Promise<BoundedResponse>((resolve, reject) => {
+    const outgoing = request(
+      url,
+      {
+        method: "GET",
+        headers: {
+          accept,
+          "user-agent": "Hearth-Library/0.60"
+        },
+        lookup: pinnedLookup
+      },
+      (incoming) => {
+        const declaredLength = Number(incoming.headers["content-length"] ?? 0);
+        if (declaredLength > maxBytes) {
+          incoming.destroy();
+          reject(new Error("That public reference returned more metadata than Hearth will retain."));
+          return;
+        }
+        const chunks: Buffer[] = [];
+        let bytes = 0;
+        incoming.on("data", (chunk: Buffer) => {
+          bytes += chunk.byteLength;
+          if (bytes > maxBytes) {
+            incoming.destroy(
+              new Error("That public reference returned more metadata than Hearth will retain.")
+            );
+            return;
+          }
+          chunks.push(chunk);
+        });
+        incoming.on("end", () => {
+          resolve({
+            status: incoming.statusCode ?? 0,
+            headers: incoming.headers,
+            body: Buffer.concat(chunks)
+          });
+        });
+        incoming.on("error", reject);
+      }
+    );
+    outgoing.setTimeout(6_000, () => {
+      outgoing.destroy(new Error("That public reference took too long to respond."));
+    });
+    outgoing.on("error", reject);
+    outgoing.end();
+  });
+  return { url, response };
 }
 
 function decodeHtml(value: string): string {
@@ -120,95 +207,40 @@ export function parseLinkMetadata(html: string): {
 }
 
 async function requestHtml(candidate: string, redirects = 0): Promise<string> {
-  const url = await assertPublicUrl(candidate);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6_000);
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      redirect: "manual",
-      signal: controller.signal,
-      headers: {
-        accept: "text/html,application/xhtml+xml",
-        "user-agent": "Hearth-Library/0.11"
-      }
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const { url, response } = await requestPublic(
+    candidate,
+    "text/html,application/xhtml+xml",
+    MAX_HTML_BYTES
+  );
   if (response.status >= 300 && response.status < 400) {
-    const location = response.headers.get("location");
+    const location = Array.isArray(response.headers.location)
+      ? response.headers.location[0]
+      : response.headers.location;
     if (!location || redirects >= MAX_REDIRECTS) {
       throw new Error("That link redirected too many times.");
     }
     return requestHtml(new URL(location, url).toString(), redirects + 1);
   }
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(`That page returned ${response.status} instead of link details.`);
   }
-  const contentType = response.headers.get("content-type")?.toLocaleLowerCase() ?? "";
+  const contentType = String(response.headers["content-type"] ?? "").toLocaleLowerCase();
   if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
     throw new Error("That link does not point to an HTML page.");
   }
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let html = "";
-  let bytes = 0;
-  while (true) {
-    const chunk = await reader.read();
-    if (chunk.done) break;
-    bytes += chunk.value.byteLength;
-    if (bytes > MAX_HTML_BYTES) {
-      await reader.cancel();
-      break;
-    }
-    html += decoder.decode(chunk.value, { stream: true });
-  }
-  return html;
+  return response.body.toString("utf8");
 }
 
 async function requestJson(candidate: string): Promise<Record<string, unknown>> {
-  const url = await assertPublicUrl(candidate);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6_000);
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      redirect: "error",
-      signal: controller.signal,
-      headers: {
-        accept: "application/vnd.github+json",
-        "user-agent": "Hearth-Library/0.51"
-      }
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (!response.ok) {
+  const { response } = await requestPublic(
+    candidate,
+    "application/vnd.github+json",
+    MAX_JSON_BYTES
+  );
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(`GitHub returned ${response.status} instead of public reference details.`);
   }
-  const declaredLength = Number(response.headers.get("content-length") ?? 0);
-  if (declaredLength > MAX_JSON_BYTES) {
-    throw new Error("That public reference returned more metadata than Hearth will retain.");
-  }
-  if (!response.body) return {};
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let raw = "";
-  let bytes = 0;
-  while (true) {
-    const chunk = await reader.read();
-    if (chunk.done) break;
-    bytes += chunk.value.byteLength;
-    if (bytes > MAX_JSON_BYTES) {
-      await reader.cancel();
-      throw new Error("That public reference returned more metadata than Hearth will retain.");
-    }
-    raw += decoder.decode(chunk.value, { stream: true });
-  }
-  raw += decoder.decode();
-  return JSON.parse(raw) as Record<string, unknown>;
+  return JSON.parse(response.body.toString("utf8")) as Record<string, unknown>;
 }
 
 function text(value: unknown, limit: number): string | null {

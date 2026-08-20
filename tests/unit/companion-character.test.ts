@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  companionGazePose,
+  companionAtlasCell,
+  companionGazeKey,
   shortestDirectionStep
 } from "../../src/renderer/src/CompanionCharacter";
 
@@ -18,26 +19,49 @@ describe("Companion direction motion", () => {
     expect(frames).not.toContain(0);
   });
 
-  it("keeps cursor-follow motion inside the fixed rig's safe bounds", () => {
-    expect(companionGazePose(null)).toEqual({
-      headX: 0,
-      headY: 0,
-      headTurn: 0,
-      bodyTurn: 0,
-      lampLower: 0,
-      lampUpper: 0,
-      lampShade: 0
+  it("maps cursor directions onto the canonical-body gaze set", () => {
+    expect(Array.from({ length: 16 }, (_, direction) => companionGazeKey(direction)))
+      .toEqual([
+        "up", "up-right", "up-right", "up-right",
+        "right", "down-right", "down-right", "down-right",
+        "down", "down-left", "down-left", "down-left",
+        "left", "up-left", "up-left", "up-left"
+      ]);
+    expect(companionAtlasCell("idle", null, 4, 0)).toEqual({
+      row: 0,
+      column: 0,
+      state: "gaze"
     });
+  });
 
-    for (let direction = 0; direction < 16; direction += 1) {
-      const pose = companionGazePose(direction);
-      expect(Math.abs(pose.headX)).toBeLessThanOrEqual(4.2);
-      expect(Math.abs(pose.headY)).toBeLessThanOrEqual(2.45);
-      expect(Math.abs(pose.headTurn)).toBeLessThanOrEqual(1.35);
-      expect(Math.abs(pose.bodyTurn)).toBeLessThanOrEqual(0.9);
-      expect(Math.abs(pose.lampLower)).toBeLessThanOrEqual(0.9);
-      expect(Math.abs(pose.lampUpper)).toBeLessThanOrEqual(2);
-      expect(Math.abs(pose.lampShade)).toBeLessThanOrEqual(3.2);
-    }
+  it("plays a full tread turn without using the old running rows", () => {
+    expect(companionAtlasCell("idle", "spin", null, 0)).toEqual({
+      row: 0,
+      column: 0,
+      state: "spin"
+    });
+    expect(companionAtlasCell("idle", "spin", null, 7)).toEqual({
+      row: 0,
+      column: 0,
+      state: "spin"
+    });
+    expect(companionAtlasCell("idle", "spin", null, 8)).toEqual({
+      row: 0,
+      column: 0,
+      state: "spin"
+    });
+    expect(companionAtlasCell("idle", "spin", null, 15)).toEqual({
+      row: 0,
+      column: 0,
+      state: "spin"
+    });
+  });
+
+  it("gives an explicit gesture precedence over cursor gaze", () => {
+    expect(companionAtlasCell("thinking", "wave", 12, 2)).toEqual({
+      row: 3,
+      column: 2,
+      state: "wave"
+    });
   });
 });

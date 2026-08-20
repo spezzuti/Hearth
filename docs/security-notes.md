@@ -296,16 +296,12 @@ Workshop uses Microsoft’s `node-pty` 1.2 preview because it provides the curre
 
 ## Dependency advisory status
 
-The dependency audit is time-sensitive. The 2026-08-05 audit reports two newly disclosed issues in
-the runtime dependency tree:
+The dependency audit is time-sensitive. On 2026-08-20, both the complete locked dependency audit and
+the production-only audit report zero known vulnerabilities. The earlier `fast-uri`, `hono`, and
+`brace-expansion` advisories were repaired through locked transitive upgrades. CI repeats the
+production audit on every change; a tagged release additionally runs the complete verification and
+packaged gates before publication.
 
-- `fast-uri` 3.1.4 through the Claude/MCP validation path is affected by
-  [GHSA-7p8r-x3mc-p8w7](https://github.com/advisories/GHSA-7p8r-x3mc-p8w7); and
-- `hono` 4.12.33 through the Model Context Protocol SDK is affected by
-  [GHSA-8j4g-w8fx-2239](https://github.com/advisories/GHSA-8j4g-w8fx-2239).
-
-The build-tool tree also contains affected `brace-expansion` versions. `npm audit fix --dry-run`
-reports patch-level transitive replacements for these packages without direct dependency changes.
-This repair is the first item in the current [roadmap](roadmap.md), followed by the complete unit,
-Electron, packaged ACP, Companion-network, and installer smoke gates. Until that repair is applied,
-the repository must not describe the production audit as clean.
+Public-link enrichment rejects loopback, private, link-local, Tailscale/CGNAT, multicast,
+documentation, and other reserved destinations. The validated DNS address is pinned into the HTTP
+or HTTPS connection so a second resolution cannot redirect the request toward a local service.

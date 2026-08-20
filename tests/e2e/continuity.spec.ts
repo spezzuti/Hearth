@@ -879,13 +879,13 @@ test.describe.serial("continuity vertical slice", () => {
           document.querySelector<HTMLElement>(".library-room")?.scrollHeight ?? 0
       };
     });
-    expect(libraryBounds.documentScrollWidth).toBeLessThanOrEqual(libraryBounds.documentWidth + 1);
-    expect(libraryBounds.catalogScrollWidth).toBeLessThanOrEqual(libraryBounds.catalogWidth + 1);
-    expect(libraryBounds.roomScrollHeight).toBeLessThanOrEqual(libraryBounds.roomHeight + 1);
     await running.page.screenshot({
       path: path.join(screenshotDirectory, "library-compact.png"),
       fullPage: true
     });
+    expect(libraryBounds.documentScrollWidth).toBeLessThanOrEqual(libraryBounds.documentWidth + 1);
+    expect(libraryBounds.catalogScrollWidth).toBeLessThanOrEqual(libraryBounds.catalogWidth + 1);
+    expect(libraryBounds.roomScrollHeight).toBeLessThanOrEqual(libraryBounds.roomHeight + 1);
     await running.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.setSize(1440, 900);
     });
@@ -974,9 +974,10 @@ test.describe.serial("continuity vertical slice", () => {
     });
     const companionCharacter = companionButton.locator(".companion-character");
     await expect(companionCharacter).toHaveAttribute("data-mood", "idle");
-    await expect(companionCharacter).toHaveAttribute("data-animation", "frames");
+    await expect(companionCharacter).toHaveAttribute("data-animation", "stable-frame");
     await expect(companionCharacter).toHaveAttribute("data-frames-ready", "true");
-    await expect(companionCharacter.locator(".companion-sprite-frame")).toHaveCount(1);
+    await expect(companionCharacter.locator(".companion-gaze-image")).toHaveCount(1);
+    await expect(companionCharacter.locator(".companion-atlas-image")).toHaveCount(0);
     await expect(companionCharacter.locator(".companion-rig, .companion-rig-eye"))
       .toHaveCount(0);
     await expect(companionButton).toHaveCSS("filter", "none");
@@ -998,7 +999,7 @@ test.describe.serial("continuity vertical slice", () => {
     await expect(running.page.locator(".companion"))
       .toHaveAttribute("data-pointer-tracking", "true");
     await expect(companionCharacter).toHaveAttribute("data-state", "gaze");
-    await expect(companionCharacter).toHaveAttribute("data-row", "10");
+    await expect(companionCharacter).toHaveAttribute("data-gaze", "left");
     await running.page.screenshot({
       path: path.join(screenshotDirectory, "companion-character-near.png"),
       fullPage: true
@@ -1011,7 +1012,7 @@ test.describe.serial("continuity vertical slice", () => {
     });
     await running.page.mouse.move(450, Math.max(30, companionBounds!.y - 130), { steps: 4 });
     await expect(companionCharacter).toHaveAttribute("data-mood", "track-high");
-    await expect(companionCharacter).toHaveAttribute("data-animation", "frames");
+    await expect(companionCharacter).toHaveAttribute("data-animation", "stable-frame");
     await running.page.mouse.move(
       Math.max(40, companionBounds!.x - 280),
       companionBounds!.y + companionBounds!.height / 2,
@@ -1025,42 +1026,34 @@ test.describe.serial("continuity vertical slice", () => {
       { steps: 4 }
     );
     await expect(companionCharacter).toHaveAttribute("data-mood", "idle");
-    await expect(companionCharacter).toHaveAttribute("data-gesture", "jump");
-    await expect(companionCharacter).toHaveAttribute("data-row", "4");
-    await running.page.waitForTimeout(470);
-    await expect(companionCharacter).toHaveAttribute("data-frame", "4");
-    await running.page.waitForTimeout(800);
-    await expect(companionCharacter).toHaveAttribute("data-gesture", "none");
     await expect(companionCharacter).toHaveAttribute("data-state", "gaze");
     await running.page.screenshot({
       path: path.join(screenshotDirectory, "companion-character-idle.png"),
       fullPage: true
     });
     await companionButton.click();
-    await expect(running.page.locator(".companion"))
-      .toHaveAttribute("data-acknowledging", "true");
-    await expect(companionCharacter).toHaveAttribute("data-gesture", "wave");
-    await expect(companionCharacter).toHaveAttribute("data-row", "3");
-    await expect(companionCharacter.locator(".companion-sprite-frame")).toBeVisible();
+    const openCompanionCharacter = running.page.locator(
+      ".companion-button .companion-character"
+    );
+    await expect(openCompanionCharacter).toHaveAttribute("data-gesture", "wave");
+    await expect(openCompanionCharacter).toHaveAttribute("data-row", "3");
+    await expect(openCompanionCharacter.locator(".companion-atlas-image")).toBeVisible();
     await expect(
       running.page.getByRole("heading", { name: "Companion", exact: true })
     ).toBeVisible();
     await expect(
       running.page.locator(".companion-button .companion-character")
-    ).toHaveAttribute("data-mood", "listening");
-    await expect(
-      running.page.locator(".companion-button .companion-character")
-    ).toHaveAttribute("data-animation", "frames");
-    await expect(running.page.locator(".companion-button .companion-sprite-frame"))
+    ).toHaveAttribute("data-animation", "stable-frame");
+    await expect(running.page.locator(".companion-button .companion-atlas-image"))
       .toBeVisible();
     await expect(running.page.locator(".companion-button"))
       .toHaveCSS("opacity", "1");
     await expect(
-      running.page.locator(".companion-heading .companion-sprite-frame")
+      running.page.locator(".companion-heading .companion-gaze-image")
     ).toBeVisible();
     await expect(
       running.page.locator(".companion-heading .companion-character")
-    ).toHaveAttribute("data-mood", "listening");
+    ).toHaveAttribute("data-mood", "idle");
     await running.page.screenshot({
       path: path.join(screenshotDirectory, "companion-character-open.png"),
       fullPage: true
@@ -1083,7 +1076,7 @@ test.describe.serial("continuity vertical slice", () => {
     const companionCharacter = running.page
       .getByRole("button", { name: "Talk to Companion" })
       .locator(".companion-character");
-    await expect(companionCharacter).toHaveAttribute("data-animation", "frames");
+    await expect(companionCharacter).toHaveAttribute("data-animation", "stable-frame");
     await expect(companionCharacter).toHaveCSS("animation-name", "none");
     const firstFrame = await companionCharacter.getAttribute("data-frame");
     await running.page.waitForTimeout(900);

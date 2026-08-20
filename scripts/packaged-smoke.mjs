@@ -24,6 +24,19 @@ const launchEnvironment = {
       : "local"
 };
 
+function stripTerminal(text) {
+  return text
+    .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "")
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
+    .replace(/\r/g, "")
+    .trim();
+}
+
+async function terminalText(page) {
+  return stripTerminal(await page.locator(".xterm-accessibility-tree").innerText());
+}
+
 const app = await electron.launch({
   executablePath,
   args: [
@@ -181,50 +194,32 @@ try {
       await page
         .getByRole("heading", { name: "Work with the process in view." })
         .waitFor();
-      const composer = page.getByLabel("Message Maker");
-      await composer.fill(
+      const startClaude = page.getByRole("button", { name: "Start Claude Code", exact: true });
+      if (await startClaude.isVisible()) await startClaude.click();
+      const terminal = page.locator(".terminal-host");
+      await terminal.waitFor({ state: "visible", timeout: 20_000 });
+      await page.getByRole("button", { name: "Talk in Claude Code" }).click();
+      await page.keyboard.type(
         "Inspect package.json, README.md, and src/core/claude-acp-runtime.ts, then explain the runtime design. Do not edit anything."
       );
-      await composer.press("Enter");
-      await page
-        .getByPlaceholder("Interrupt Maker with a new direction…")
-        .waitFor({ timeout: 15_000 });
-      await composer.fill(
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(1_000);
+      await page.keyboard.type(
         "Change of direction: stop that review and reply with exactly HEARTH-INTERRUPT-OK. Do not use tools."
       );
-      await page
-        .getByRole("button", { name: "Interrupt and send to Maker" })
-        .click();
-      await page
-        .getByText("HEARTH-INTERRUPT-OK", { exact: true })
-        .last()
-        .waitFor({ timeout: 90_000 });
-      await page
-        .getByText("Interrupted", { exact: true })
-        .first()
-        .waitFor({ timeout: 15_000 });
-      makerInterrupt = await page.evaluate(async () => {
-        const bootstrap = await window.hearth.bootstrap();
-        const turns = bootstrap.workshop.turns.slice(-2);
-        return {
-          firstCancelled: turns[0]?.status === "cancelled",
-          firstReason: turns[0]?.status === "cancelled" ? "interrupted" : null,
-          replacementCancelled: turns[1]?.status === "cancelled",
-          replacementReply:
-            [...bootstrap.conversations.maker]
-              .reverse()
-              .find((message) => message.role === "assistant")?.text ?? ""
-        };
-      });
-      if (
-        !makerInterrupt.firstCancelled ||
-        makerInterrupt.firstReason !== "interrupted" ||
-        makerInterrupt.replacementCancelled ||
-        !makerInterrupt.replacementReply.includes("HEARTH-INTERRUPT-OK")
-      ) {
-        throw new Error(
-          `Managed Maker did not interrupt cleanly: ${JSON.stringify(makerInterrupt)}`
-        );
+      await page.keyboard.press("Enter");
+      let text = "";
+      for (let attempt = 0; attempt < 240; attempt += 1) {
+        text = await terminalText(page);
+        if (text.includes("HEARTH-INTERRUPT-OK")) break;
+        await page.waitForTimeout(500);
+      }
+      makerInterrupt = {
+        nativeClaudeCodeSurface: (await page.getByLabel("Message Maker").count()) === 0,
+        replacementObserved: text.includes("HEARTH-INTERRUPT-OK")
+      };
+      if (!makerInterrupt.nativeClaudeCodeSurface || !makerInterrupt.replacementObserved) {
+        throw new Error(`Native Claude Code steering failed: ${JSON.stringify(makerInterrupt)}`);
       }
     }
     if (process.env.HEARTH_PACKAGED_SCREENSHOT) {
@@ -281,6 +276,11 @@ try {
     .getByLabel("Rooms")
     .getByRole("button", { name: /Workshop/ })
     .click();
+  const stopSession = page.getByRole("button", { name: "Stop", exact: true });
+  if (await stopSession.isVisible()) {
+    await stopSession.click();
+    await page.getByRole("button", { name: "Stop session", exact: true }).click();
+  }
   await page
     .getByRole("button", { name: /^Open .*PowerShell/ })
     .first()

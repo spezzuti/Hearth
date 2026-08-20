@@ -19,3 +19,5 @@ coverage/
 tmp/
 __pycache__/
 *.py[cod]
+src/renderer/src/assets/residents/companion/gaze-v3/gaze-directions-qa.png
+src/renderer/src/assets/residents/companion/gaze-v3/gaze-loop.gif

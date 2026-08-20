@@ -766,7 +766,17 @@ function registerIpc(): void {
   });
   ipcMain.handle("hearth:create-backup", (event, reason: string) => {
     assertTrustedSender(event);
-    return core.invoke("createBackup", { reason });
+    return core.invoke("createBackup", { reason }).then((result) => ({
+      createdAt: (result as { createdAt: string }).createdAt
+    }));
+  });
+  ipcMain.handle("hearth:open-data-folder", async (event) => {
+    assertTrustedSender(event);
+    const dataDirectory =
+      process.env.HEARTH_DATA_DIR || path.join(app.getPath("userData"), "data");
+    const error = await shell.openPath(dataDirectory);
+    if (error) throw new Error(error);
+    return { opened: true as const };
   });
   ipcMain.handle("hearth:list-workspace-projects", (event, refresh?: boolean) => {
     assertTrustedSender(event);

@@ -1828,7 +1828,8 @@ export interface HearthApi {
   forgetHouseMemory(memoryId: string): Promise<HouseMemorySnapshot>;
   updateObjective(objective: string): Promise<ProjectState>;
   leaveProject(note?: string): Promise<ReturnPack>;
-  createBackup(reason: string): Promise<{ path: string; createdAt: string }>;
+  createBackup(reason: string): Promise<{ createdAt: string }>;
+  openDataFolder(): Promise<{ opened: true }>;
   listWorkspaceProjects(refresh?: boolean): Promise<WorkspaceCatalog>;
   selectWorkspaceProject(projectId: string): Promise<WorkspaceProjectSummary>;
   activateWorkspaceProject(projectId: string): Promise<WorkspaceActivation>;

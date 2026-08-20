@@ -31,8 +31,15 @@ describe("Library link boundaries", () => {
   it("rejects loopback and private network addresses", () => {
     expect(isPublicAddress("127.0.0.1")).toBe(false);
     expect(isPublicAddress("10.20.30.40")).toBe(false);
+    expect(isPublicAddress("100.64.0.1")).toBe(false);
+    expect(isPublicAddress("100.127.255.254")).toBe(false);
     expect(isPublicAddress("192.168.1.5")).toBe(false);
+    expect(isPublicAddress("192.0.0.8")).toBe(false);
+    expect(isPublicAddress("198.18.0.1")).toBe(false);
+    expect(isPublicAddress("239.255.255.250")).toBe(false);
     expect(isPublicAddress("::1")).toBe(false);
+    expect(isPublicAddress("ff02::1")).toBe(false);
+    expect(isPublicAddress("2001:db8::1")).toBe(false);
     expect(isPublicAddress("8.8.8.8")).toBe(true);
     expect(isPublicAddress("2606:4700:4700::1111")).toBe(true);
   });

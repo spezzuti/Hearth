@@ -154,6 +154,7 @@ const api: HearthApi = {
     ipcRenderer.invoke("hearth:leave-project", note),
   createBackup: (reason: string) =>
     ipcRenderer.invoke("hearth:create-backup", reason),
+  openDataFolder: () => ipcRenderer.invoke("hearth:open-data-folder"),
   listWorkspaceProjects: (refresh?: boolean) =>
     ipcRenderer.invoke("hearth:list-workspace-projects", refresh),
   selectWorkspaceProject: (projectId: string) =>

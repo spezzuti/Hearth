@@ -1,43 +1,22 @@
 # Security policy
 
-## Reporting a vulnerability
-
-Please use GitHub's private vulnerability reporting for this repository. Do not open a public issue
-for a vulnerability that could expose project files, credentials, terminal input, local application
-data, or remote Companion access.
-
-Include:
-
-- the affected Hearth version and Windows version;
-- the capability boundary involved;
-- minimal reproduction steps using non-sensitive fixture data;
-- expected and observed behavior;
-- impact and any known mitigation.
-
-Do not include real credentials, private source code, terminal history, or a user's Hearth database.
-
 ## Supported version
 
-Hearth is pre-1.0. Security fixes target the current `main` branch and latest published source
-version. Older development snapshots are not supported.
+Hearth is pre-1.0. Security fixes are applied to the newest published Windows release candidate.
 
-## Security model
+## Reporting a vulnerability
 
-Hearth is a local desktop application that can interact with source repositories, terminals, model
-providers, public links, and an optional private mobile surface. Its primary defenses are process
-separation, narrow validated IPC, path containment, bounded data movement, explicit ownership and
-approval, and honest provider/capability labels.
+Please do not open a public issue for a suspected vulnerability. Use GitHub's private vulnerability
+reporting for `spezzuti/Hearth` when available. If that surface is unavailable, contact the repository
+owner privately before sharing reproduction details.
 
-The detailed model is maintained in [docs/security-notes.md](docs/security-notes.md). Architecture is
-documented in [docs/architecture.md](docs/architecture.md).
+Useful reports include the affected Hearth version, the Windows version, the trust boundary involved,
+and a minimal reproduction that does not contain real credentials, project source, prompts, terminal
+scrollback, or personal paths.
 
-## Out of scope
+## Security boundaries
 
-- vulnerabilities in Claude Code, Codex, Electron, Node.js, Tailscale, or another upstream project
-  that do not arise from Hearth's integration;
-- social engineering that requires the user to deliberately paste and approve an unsafe command in
-  an owned terminal;
-- unsupported operating systems or modified builds that remove Hearth's validation boundaries.
-
-Reports about Hearth incorrectly expanding authority, leaking bounded context, crossing a project
-root, mishandling credentials, or exposing Companion without valid pairing are in scope.
+Hearth runs Claude Code, Codex, terminals, and project tools with the permissions of the signed-in
+Windows user. It is not a security sandbox for those tools. The renderer is sandboxed away from Node,
+and project writes, remote Companion access, link retrieval, and resident context each have narrower
+boundaries documented in [Security notes](docs/security-notes.md).

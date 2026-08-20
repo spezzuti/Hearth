@@ -58,6 +58,7 @@ import type {
   WorkspaceCatalog,
   WorkspaceProjectSummary
 } from "../../shared/contracts";
+import { version as hearthVersion } from "../../../package.json";
 import {
   HearthSearch,
   type HearthSearchResult
@@ -69,6 +70,7 @@ import { LivingRoom } from "./LivingRoom";
 import { ReferenceCard } from "./ReferenceCard";
 import {
   CompanionCharacter,
+  type CompanionGesture,
   type CompanionMood,
   companionFrameSources
 } from "./CompanionCharacter";
@@ -462,6 +464,7 @@ function HomeRoom({
     useState<DesktopNotificationStatus | null>(null);
   const [companionBusy, setCompanionBusy] = useState(false);
   const [notificationBusy, setNotificationBusy] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
   const [attentionControlsOpen, setAttentionControlsOpen] = useState(false);
   const [houseMemoryOpen, setHouseMemoryOpen] = useState(false);
   const weekday = new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
@@ -577,6 +580,77 @@ function HomeRoom({
       );
     } finally {
       setCompanionBusy(false);
+    }
+  }
+
+  async function createHouseBackup(): Promise<void> {
+    if (backupBusy) return;
+    setBackupBusy(true);
+    try {
+      const backup = await window.hearth.createBackup("manual-house-care");
+      onNotify(`A recovery snapshot was saved at ${formatTime(backup.createdAt)}.`);
+    } catch (reason) {
+      onNotify(
+        reason instanceof Error
+          ? reason.message
+          : "Hearth could not create a recovery snapshot."
+      );
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function copySupportDiagnostics(): Promise<void> {
+    const residents = data.runtime.provider.residents;
+    const report = {
+      product: "Hearth",
+      version: hearthVersion,
+      capturedAt: new Date().toISOString(),
+      platform: navigator.userAgent,
+      runtime: {
+        coreStartedAt: data.runtime.coreStartedAt,
+        databaseJournalMode: data.runtime.databaseJournalMode,
+        liveProcesses: data.runtime.liveProcesses
+      },
+      provider: {
+        selection: data.runtime.provider.selection,
+        active: data.runtime.provider.active,
+        state: data.runtime.provider.state,
+        available: data.runtime.provider.available,
+        residents: residents
+          ? Object.fromEntries(
+              Object.entries(residents).map(([name, resident]) => [
+                name,
+                {
+                  provider: resident.provider,
+                  model: resident.model,
+                  available: resident.available,
+                  state: resident.state,
+                  fallbackFrom: resident.fallbackFrom
+                }
+              ])
+            )
+          : null
+      },
+      terminal: {
+        active: Boolean(data.terminal.session),
+        kind: data.terminal.session?.kind ?? null,
+        lifecycle: data.terminal.session?.lifecycle ?? null,
+        owner: data.terminal.session?.owner ?? null,
+        claudeAvailable: data.terminal.capabilities.claudeAvailable,
+        claudeVersion: data.terminal.capabilities.claudeVersion,
+        outputTruncated: data.terminal.truncated
+      },
+      companion: {
+        local: companionAccess?.state ?? "unknown",
+        remote: companionRemote?.state ?? "unknown"
+      }
+    };
+    try {
+      await window.hearth.writeClipboard(JSON.stringify(report, null, 2));
+      onNotify("Safe support diagnostics were copied without project paths or conversation text.");
+    } catch (reason) {
+      onNotify(reason instanceof Error ? reason.message : "Diagnostics could not be copied.");
     }
   }
   return (
@@ -997,6 +1071,39 @@ function HomeRoom({
           ) : null}
         </section>
       </div>
+      <section className="home-care-strip" aria-label="House care and recovery">
+        <div>
+          <p className="eyebrow">House care</p>
+          <strong>Recovery is ready</strong>
+          <small>
+            Hearth keeps eight rotating startup snapshots. Make an extra one before a risky upgrade.
+          </small>
+        </div>
+        <div className="home-care-strip__actions">
+          <button
+            type="button"
+            className="small-button"
+            disabled={backupBusy}
+            onClick={() => void createHouseBackup()}
+          >
+            {backupBusy ? "Saving…" : "Back up now"}
+          </button>
+          <button
+            type="button"
+            className="small-button small-button--quiet"
+            onClick={() => void window.hearth.openDataFolder()}
+          >
+            Open recovery folder
+          </button>
+          <button
+            type="button"
+            className="small-button small-button--quiet"
+            onClick={() => void copySupportDiagnostics()}
+          >
+            Copy diagnostics
+          </button>
+        </div>
+      </section>
       {houseMemoryOpen ? (
         <HouseMemoryDialog
           snapshot={data.houseMemory}
@@ -3861,13 +3968,15 @@ function Companion({
   const [pointerPose, setPointerPose] = useState<CompanionMood>("idle");
   const [proximity, setProximity] = useState<"far" | "near" | "direct">("far");
   const [pointerTracking, setPointerTracking] = useState(false);
-  const [gesture, setGesture] = useState<"wave" | "jump" | null>(null);
+  const [gesture, setGesture] = useState<CompanionGesture | null>(null);
   const [failed, setFailed] = useState(false);
   const [gazeIndex, setGazeIndex] = useState<number | null>(null);
   const [ambientGazeIndex, setAmbientGazeIndex] = useState<number | null>(null);
   const [framesReady, setFramesReady] = useState(false);
   const gestureCompletion = useRef<(() => void) | null>(null);
   const pointerIdleTimer = useRef<number | null>(null);
+  const pointerFrame = useRef<number | null>(null);
+  const pendingPointer = useRef<{ x: number; y: number } | null>(null);
   const ambientTimer = useRef<number | null>(null);
   const failureTimer = useRef<number | null>(null);
   const [documentVisible, setDocumentVisible] = useState(
@@ -3888,6 +3997,7 @@ function Companion({
 
   useEffect(() => () => {
     if (pointerIdleTimer.current !== null) window.clearTimeout(pointerIdleTimer.current);
+    if (pointerFrame.current !== null) window.cancelAnimationFrame(pointerFrame.current);
     if (ambientTimer.current !== null) window.clearTimeout(ambientTimer.current);
     if (failureTimer.current !== null) window.clearTimeout(failureTimer.current);
   }, []);
@@ -3909,7 +4019,7 @@ function Companion({
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion || !documentVisible || !framesReady || open || busy || noticedReply || pointerTracking) {
+    if (reduceMotion || !documentVisible || !framesReady || open || busy || noticedReply || pointerTracking || gesture) {
       setAmbientGazeIndex(null);
       return;
     }
@@ -3918,12 +4028,17 @@ function Companion({
     const scheduleGlance = (): void => {
       const delay = 12_000 + Math.round(Math.random() * 9_000);
       ambientTimer.current = window.setTimeout(() => {
-        const glance = glances[Math.floor(Math.random() * glances.length)] ?? 0;
-        setAmbientGazeIndex(glance);
-        ambientTimer.current = window.setTimeout(() => {
-          setAmbientGazeIndex(null);
-          scheduleGlance();
-        }, 1_450 + Math.round(Math.random() * 650));
+        const choice = Math.random();
+        if (choice < 0.58) {
+          const glance = glances[Math.floor(Math.random() * glances.length)] ?? 0;
+          setAmbientGazeIndex(glance);
+          ambientTimer.current = window.setTimeout(() => {
+            setAmbientGazeIndex(null);
+            scheduleGlance();
+          }, 1_450 + Math.round(Math.random() * 650));
+        } else {
+          setGesture(choice < 0.78 ? "wave" : choice < 0.92 ? "jump" : "spin");
+        }
       }, delay);
     };
 
@@ -3934,18 +4049,21 @@ function Companion({
         ambientTimer.current = null;
       }
     };
-  }, [busy, documentVisible, framesReady, noticedReply, open, pointerTracking]);
+  }, [busy, documentVisible, framesReady, gesture, noticedReply, open, pointerTracking]);
 
   useEffect(() => {
     if (!documentVisible || !framesReady || open || busy || noticedReply || gesture) return;
-    const followPointer = (event: PointerEvent | MouseEvent): void => {
+    const applyPointer = (): void => {
+      pointerFrame.current = null;
+      const point = pendingPointer.current;
+      if (!point) return;
       const anchor = document.querySelector<HTMLElement>(".companion-button");
       if (!anchor) return;
       const bounds = anchor.getBoundingClientRect();
       const centerX = bounds.left + bounds.width / 2;
       const centerY = bounds.top + bounds.height / 2;
-      const deltaX = event.clientX - centerX;
-      const deltaY = event.clientY - centerY;
+      const deltaX = point.x - centerX;
+      const deltaY = point.y - centerY;
       const distance = Math.hypot(deltaX, deltaY);
       setPointerTracking(true);
       setAmbientGazeIndex(null);
@@ -3971,17 +4089,29 @@ function Companion({
       setProximity((current) => current === nextProximity ? current : nextProximity);
       const nextPose: CompanionMood = distance < 175
         ? "idle"
-        : event.clientY < centerY - 105
+        : point.y < centerY - 105
           ? "track-high"
-          : event.clientY > centerY + 70
+          : point.y > centerY + 70
             ? "resting"
             : "track-level";
       setPointerPose((current) => current === nextPose ? current : nextPose);
     };
 
+    const followPointer = (event: PointerEvent): void => {
+      pendingPointer.current = { x: event.clientX, y: event.clientY };
+      if (pointerFrame.current === null) {
+        pointerFrame.current = window.requestAnimationFrame(applyPointer);
+      }
+    };
+
     window.addEventListener("pointermove", followPointer, { passive: true });
     return () => {
       window.removeEventListener("pointermove", followPointer);
+      if (pointerFrame.current !== null) {
+        window.cancelAnimationFrame(pointerFrame.current);
+        pointerFrame.current = null;
+      }
+      pendingPointer.current = null;
       if (pointerIdleTimer.current !== null) {
         window.clearTimeout(pointerIdleTimer.current);
         pointerIdleTimer.current = null;
