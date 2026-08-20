@@ -1,5 +1,9 @@
 # ADR 0017: Explicit orientation from Archive
 
+> Historical note: ADR 0039 supersedes the cross-project selection and live-terminal behavior
+> described here. Archive browsing is now non-mutating; explicit Workshop activation performs one
+> serialized park-select-load transition.
+
 ## Context
 
 Archive made historical records findable and recoverable, but a record still ended at its detail

@@ -41,6 +41,8 @@ if (!process.parentPort) {
 }
 
 const port = process.parentPort;
+let projectActivationQueue: Promise<void> = Promise.resolve();
+
 function emitAgentEvent(event: AgentStreamEvent): void {
   port.postMessage({
     type: "agent-event",
@@ -935,8 +937,37 @@ async function dispatch(request: CoreRequest): Promise<unknown> {
       return store.createBackup(request.payload.reason);
     case "listWorkspaceProjects":
       return projects.list(request.payload.refresh);
-    case "selectWorkspaceProject":
-      return projects.select(request.payload.projectId);
+    case "selectWorkspaceProject": {
+      const selected = await projects.select(request.payload.projectId);
+      terminal.selectProject(selected.rootPath);
+      return selected;
+    }
+    case "activateWorkspaceProject": {
+      const activation = projectActivationQueue.then(async () => {
+        const target = await projects.detail(request.payload.projectId);
+        const liveElsewhere =
+          terminal.isLive() && !terminal.belongsToProject(target.project.rootPath);
+        const parkedProjectRoot = liveElsewhere
+          ? terminal.snapshot().session?.cwd ?? null
+          : null;
+        if (liveElsewhere) {
+          const session = terminal.snapshot().session;
+          if (session) terminal.stop(session.id);
+        }
+        const selected = await projects.select(request.payload.projectId);
+        const snapshot = terminal.selectProject(selected.rootPath);
+        return {
+          project: selected,
+          terminal: snapshot,
+          parkedProjectRoot
+        };
+      });
+      projectActivationQueue = activation.then(
+        () => undefined,
+        () => undefined
+      );
+      return activation;
+    }
     case "getWorkspaceProject":
       return projects.detail(request.payload.projectId);
     case "listProjectDirectory":

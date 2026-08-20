@@ -67,6 +67,11 @@ import { ResidentAvatar } from "./ResidentAvatar";
 import { residentProviderLabel } from "./provider-label";
 import { LivingRoom } from "./LivingRoom";
 import { ReferenceCard } from "./ReferenceCard";
+import {
+  CompanionCharacter,
+  type CompanionMood,
+  companionFrameSources
+} from "./CompanionCharacter";
 
 interface AgentStreamView {
   requestId: string;
@@ -323,15 +328,16 @@ function Topbar({
       <button
         className="project-switcher"
         type="button"
-        aria-label="Current project"
+        aria-label="Choose current project"
+        title="Choose a project in Study"
         onClick={onProject}
       >
         <span className="project-glyph">H</span>
         <span>
-          <small>Current project</small>
+          <small>Current project · change</small>
           <strong>{projectName}</strong>
         </span>
-        <i aria-hidden="true">⌄</i>
+        <i aria-hidden="true">→</i>
       </button>
 
       <form className="capture-bar" onSubmit={(event) => void submit(event)}>
@@ -1759,22 +1765,24 @@ function LibraryRoom({
                   </div>
                 ) : (
                   <>
-                    <h2>{item.title ?? item.domain ?? item.text.slice(0, 80)}</h2>
-                    {item.reference ? (
-                      <ReferenceCard
-                        reference={item.reference}
-                        compact
-                        onOpen={() => void window.hearth.openExternal(item.reference!.canonicalUrl)}
-                      />
-                    ) : null}
-                    <p className="library-item-copy">
-                      {item.description ?? item.text}
-                    </p>
-                    {item.tags.length ? (
-                      <div className="library-tags">
-                        {item.tags.map((tag) => <span key={tag}>{tag}</span>)}
-                      </div>
-                    ) : null}
+                    <div className="library-item-page">
+                      <h2>{item.title ?? item.domain ?? item.text.slice(0, 80)}</h2>
+                      {item.reference ? (
+                        <ReferenceCard
+                          reference={item.reference}
+                          compact
+                          onOpen={() => void window.hearth.openExternal(item.reference!.canonicalUrl)}
+                        />
+                      ) : null}
+                      <p className="library-item-copy">
+                        {item.description ?? item.text}
+                      </p>
+                      {item.tags.length ? (
+                        <div className="library-tags">
+                          {item.tags.map((tag) => <span key={tag}>{tag}</span>)}
+                        </div>
+                      ) : null}
+                    </div>
                     <footer>
                       <span>
                         {item.libraryCollection ?? "Unfiled"}
@@ -3429,6 +3437,7 @@ function StudyRoom({
   onUpdateObjective,
   onNavigate,
   onWorkHere,
+  projectActivationBusy,
   onCapture,
   onUpdateCapture,
   onOpenNote,
@@ -3450,6 +3459,7 @@ function StudyRoom({
   onUpdateObjective: (objective: string) => Promise<void>;
   onNavigate: (route: Room) => void;
   onWorkHere: (project: WorkspaceProjectSummary) => Promise<void>;
+  projectActivationBusy: boolean;
   onCapture: (
     text: string,
     kind?: CaptureRecord["kind"]
@@ -3624,7 +3634,9 @@ function StudyRoom({
           <ProjectSurface
             currentProject={data.workspace.selectedProject}
             terminalLive={terminalLive}
+            terminalRoot={terminalSession?.cwd ?? null}
             onWorkHere={onWorkHere}
+            activationBusy={projectActivationBusy}
             onShareContext={onSetAgentContext}
             onOpenMaker={() => onView("brief")}
             notes={data.captures}
@@ -3833,45 +3845,6 @@ function StudyRoom({
   );
 }
 
-type CompanionMood = "idle" | "listening" | "thinking" | "reply";
-
-function CompanionCharacter({
-  mood,
-  compact = false
-}: {
-  mood: CompanionMood;
-  compact?: boolean;
-}): ReactNode {
-  return (
-    <span
-      className={classNames(
-        "companion-character",
-        compact && "companion-character--compact"
-      )}
-      data-mood={mood}
-      aria-hidden="true"
-    >
-      <span className="companion-spark"><i /></span>
-      <span className="companion-ear companion-ear--left" />
-      <span className="companion-ear companion-ear--right" />
-      <span className="companion-body">
-        <span className="companion-brows"><i /><i /></span>
-        <span className="companion-eyes">
-          <i><b /></i>
-          <i><b /></i>
-        </span>
-        <span className="companion-cheeks"><i /><i /></span>
-        <span className="companion-mouth" />
-        <span className="companion-heart"><i /></span>
-      </span>
-      <span className="companion-arm companion-arm--left" />
-      <span className="companion-arm companion-arm--right" />
-      <span className="companion-foot companion-foot--left" />
-      <span className="companion-foot companion-foot--right" />
-    </span>
-  );
-}
-
 function Companion({
   messages,
   providerLabel,
@@ -3885,10 +3858,139 @@ function Companion({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [noticedReply, setNoticedReply] = useState(false);
+  const [pointerPose, setPointerPose] = useState<CompanionMood>("idle");
+  const [proximity, setProximity] = useState<"far" | "near" | "direct">("far");
+  const [pointerTracking, setPointerTracking] = useState(false);
+  const [gesture, setGesture] = useState<"wave" | "jump" | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [gazeIndex, setGazeIndex] = useState<number | null>(null);
+  const [ambientGazeIndex, setAmbientGazeIndex] = useState<number | null>(null);
+  const [framesReady, setFramesReady] = useState(false);
+  const gestureCompletion = useRef<(() => void) | null>(null);
+  const pointerIdleTimer = useRef<number | null>(null);
+  const ambientTimer = useRef<number | null>(null);
+  const failureTimer = useRef<number | null>(null);
+  const [documentVisible, setDocumentVisible] = useState(
+    () => document.visibilityState !== "hidden"
+  );
   const assistantMessageCount = messages.filter(
     (entry) => entry.role === "assistant"
   ).length;
   const previousAssistantMessageCount = useRef(assistantMessageCount);
+
+  useEffect(() => {
+    const updateVisibility = (): void => {
+      setDocumentVisible(document.visibilityState !== "hidden");
+    };
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
+  useEffect(() => () => {
+    if (pointerIdleTimer.current !== null) window.clearTimeout(pointerIdleTimer.current);
+    if (ambientTimer.current !== null) window.clearTimeout(ambientTimer.current);
+    if (failureTimer.current !== null) window.clearTimeout(failureTimer.current);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const frames = companionFrameSources.map((source) => {
+      const image = new Image();
+      image.src = source;
+      return image.decode().catch(() => undefined);
+    });
+    void Promise.all(frames).then(() => {
+      if (!cancelled) setFramesReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion || !documentVisible || !framesReady || open || busy || noticedReply || pointerTracking) {
+      setAmbientGazeIndex(null);
+      return;
+    }
+
+    const glances = [14, 15, 0, 1, 2] as const;
+    const scheduleGlance = (): void => {
+      const delay = 12_000 + Math.round(Math.random() * 9_000);
+      ambientTimer.current = window.setTimeout(() => {
+        const glance = glances[Math.floor(Math.random() * glances.length)] ?? 0;
+        setAmbientGazeIndex(glance);
+        ambientTimer.current = window.setTimeout(() => {
+          setAmbientGazeIndex(null);
+          scheduleGlance();
+        }, 1_450 + Math.round(Math.random() * 650));
+      }, delay);
+    };
+
+    scheduleGlance();
+    return () => {
+      if (ambientTimer.current !== null) {
+        window.clearTimeout(ambientTimer.current);
+        ambientTimer.current = null;
+      }
+    };
+  }, [busy, documentVisible, framesReady, noticedReply, open, pointerTracking]);
+
+  useEffect(() => {
+    if (!documentVisible || !framesReady || open || busy || noticedReply || gesture) return;
+    const followPointer = (event: PointerEvent | MouseEvent): void => {
+      const anchor = document.querySelector<HTMLElement>(".companion-button");
+      if (!anchor) return;
+      const bounds = anchor.getBoundingClientRect();
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      const deltaX = event.clientX - centerX;
+      const deltaY = event.clientY - centerY;
+      const distance = Math.hypot(deltaX, deltaY);
+      setPointerTracking(true);
+      setAmbientGazeIndex(null);
+      if (pointerIdleTimer.current !== null) window.clearTimeout(pointerIdleTimer.current);
+      pointerIdleTimer.current = window.setTimeout(() => {
+        setPointerTracking(false);
+        setProximity("far");
+        setGazeIndex(null);
+        setPointerPose("idle");
+        pointerIdleTimer.current = null;
+      }, 3_200);
+      if (distance < 42) {
+        // Keep the last direction when the pointer reaches him. Resetting to
+        // centre at this point made him appear to stop responding precisely
+        // when the user was engaging with him.
+        setGazeIndex((current) => current ?? 0);
+      } else {
+        const angle = Math.atan2(deltaX, -deltaY);
+        const nextGaze = Math.round(angle / (Math.PI / 8) + 16) % 16;
+        setGazeIndex((current) => current === nextGaze ? current : nextGaze);
+      }
+      const nextProximity = distance < 105 ? "direct" : distance < 310 ? "near" : "far";
+      setProximity((current) => current === nextProximity ? current : nextProximity);
+      const nextPose: CompanionMood = distance < 175
+        ? "idle"
+        : event.clientY < centerY - 105
+          ? "track-high"
+          : event.clientY > centerY + 70
+            ? "resting"
+            : "track-level";
+      setPointerPose((current) => current === nextPose ? current : nextPose);
+    };
+
+    window.addEventListener("pointermove", followPointer, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", followPointer);
+      if (pointerIdleTimer.current !== null) {
+        window.clearTimeout(pointerIdleTimer.current);
+        pointerIdleTimer.current = null;
+      }
+      setProximity("far");
+      setPointerTracking(false);
+      setGazeIndex(null);
+    };
+  }, [busy, documentVisible, framesReady, gesture, noticedReply, open]);
 
   useEffect(() => {
     const previous = previousAssistantMessageCount.current;
@@ -3903,11 +4005,11 @@ function Companion({
 
   const mood: CompanionMood = busy
     ? "thinking"
-    : open
-      ? "listening"
+    : failed
+      ? "failed"
       : noticedReply
         ? "reply"
-        : "idle";
+        : pointerPose;
 
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -3919,18 +4021,33 @@ function Companion({
     setBusy(true);
     try {
       const completed = await onSend("companion", value);
-      if (!completed) setMessage(value);
+      if (!completed) {
+        setMessage(value);
+        setFailed(true);
+        if (failureTimer.current !== null) window.clearTimeout(failureTimer.current);
+        failureTimer.current = window.setTimeout(() => {
+          setFailed(false);
+          failureTimer.current = null;
+        }, 2_300);
+      }
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="companion">
+    <div
+      className="companion"
+      data-document-visible={documentVisible ? "true" : "false"}
+      data-proximity={proximity}
+      data-pointer-tracking={pointerTracking ? "true" : "false"}
+      data-acknowledging="false"
+      data-ambient-gesture="none"
+    >
       {open ? (
         <section className="companion-popover" aria-labelledby="companion-title">
           <div className="companion-heading">
-            <CompanionCharacter mood={busy ? "thinking" : "listening"} compact />
+            <CompanionCharacter mood={busy ? "thinking" : "idle"} compact />
             <div>
               <p className="eyebrow">{busy ? "Thinking nearby" : "Around the house"}</p>
               <h2 id="companion-title">Companion</h2>
@@ -3969,12 +4086,19 @@ function Companion({
         className={classNames("companion-button", open && "is-open")}
         onClick={() => {
           setNoticedReply(false);
+          if (!open) setGesture("wave");
           setOpen((current) => !current);
         }}
         aria-label={open ? "Close Companion" : "Talk to Companion"}
         aria-expanded={open}
       >
-        <CompanionCharacter mood={mood} />
+        <CompanionCharacter
+          mood={mood}
+          framesReady={framesReady}
+          gesture={gesture}
+          gazeIndex={pointerTracking ? gazeIndex : ambientGazeIndex}
+          onGestureComplete={() => setGesture(null)}
+        />
       </button>
       {!open ? (
         <span className="companion-label">
@@ -4091,6 +4215,7 @@ export function App(): ReactNode {
     critic: null
   });
   const [proposalBusy, setProposalBusy] = useState(false);
+  const [projectActivationBusy, setProjectActivationBusy] = useState(false);
   const [makerWorkActivities, setMakerWorkActivities] = useState<MakerWorkActivity[]>([]);
   const [makerWorkPlan, setMakerWorkPlan] = useState<MakerWorkPlanEntry[]>([]);
   const [makerThoughts, setMakerThoughts] = useState("");
@@ -4107,6 +4232,7 @@ export function App(): ReactNode {
     destination: "study" | "workshop";
   } | null>(null);
   const selectedProjectIdRef = useRef<string | null>(null);
+  const projectActivationBusyRef = useRef(false);
   const makerRequestProjectsRef = useRef(new Map<string, string | null>());
 
   const route = data?.state.lastRoute ?? "home";
@@ -4535,6 +4661,35 @@ export function App(): ReactNode {
     }
   }
 
+  async function returnToTerminalProject(): Promise<void> {
+    const terminalRoot = data?.terminal.session?.cwd;
+    if (!data || !terminalRoot) return;
+    try {
+      const catalog = await window.hearth.listWorkspaceProjects();
+      const project = catalog.projects.find(
+        (candidate) =>
+          candidate.rootPath.toLocaleLowerCase() === terminalRoot.toLocaleLowerCase()
+      );
+      if (!project) {
+        setToast("The terminal project is no longer in Hearth’s project catalog.");
+        return;
+      }
+      const selected = await window.hearth.selectWorkspaceProject(project.id);
+      const fresh = await window.hearth.bootstrap();
+      setData({ ...fresh, workspace: { selectedProject: selected } });
+      setToast(`${selected.name} is current again. Its Claude Code session never moved.`);
+    } catch (reason) {
+      setToast(
+        reason instanceof Error ? reason.message : "Hearth could not return to that project."
+      );
+    }
+  }
+
+  async function parkTerminalAndOpenSelectedProject(): Promise<void> {
+    if (!data) return;
+    await workInProject(data.workspace.selectedProject);
+  }
+
   async function setTerminalOwner(
     sessionId: string,
     owner: TerminalOwner
@@ -4707,17 +4862,16 @@ export function App(): ReactNode {
     project: WorkspaceProjectSummary
   ): Promise<void> {
     try {
-      const selected = await window.hearth.selectWorkspaceProject(project.id);
       const state = await window.hearth.setRoute("study");
       const fresh = await window.hearth.bootstrap();
-      setData({ ...fresh, state, workspace: { selectedProject: selected } });
+      setData({ ...fresh, state });
       setStudyView("projects");
       setProjectOrientation({
         requestId: crypto.randomUUID(),
-        projectId: selected.id,
+        projectId: project.id,
         path: null
       });
-      setToast(`${selected.name} is open in Study.`);
+      setToast(`Reviewing ${project.name} in Study. Your current project did not change.`);
     } catch (reason) {
       setToast(
         reason instanceof Error
@@ -4740,44 +4894,29 @@ export function App(): ReactNode {
   ): Promise<void> {
     if (!data) return;
     try {
-      const selected =
-        data.workspace.selectedProject.id === projectId
-          ? data.workspace.selectedProject
-          : await window.hearth.selectWorkspaceProject(projectId);
+      const catalog = await window.hearth.listWorkspaceProjects();
+      const target = catalog.projects.find((project) => project.id === projectId);
+      if (!target) {
+        throw new Error("That archived project is no longer in Hearth’s project catalog.");
+      }
       if (destination === "project") {
         const state = await window.hearth.setRoute("study");
         const fresh = await window.hearth.bootstrap();
-        setData({ ...fresh, state, workspace: { selectedProject: selected } });
+        setData({ ...fresh, state });
         setStudyView("projects");
         setProjectOrientation({
           requestId: crypto.randomUUID(),
-          projectId: selected.id,
+          projectId: target.id,
           path: projectPath
         });
         setToast(
           projectPath
-            ? `${selected.name} is current; opening ${projectPath}.`
-            : `${selected.name} is current in Study.`
+            ? `Reviewing ${target.name} · ${projectPath}. Your current project did not change.`
+            : `Reviewing ${target.name} in Study. Your current project did not change.`
         );
         return;
       }
-
-      const liveElsewhere = Boolean(
-        data.terminal.session &&
-          ["starting", "running", "waiting"].includes(
-            data.terminal.session.lifecycle
-          ) &&
-          data.terminal.session.cwd.toLocaleLowerCase() !==
-            selected.rootPath.toLocaleLowerCase()
-      );
-      const state = await window.hearth.setRoute("workshop");
-      const fresh = await window.hearth.bootstrap();
-      setData({ ...fresh, state, workspace: { selectedProject: selected } });
-      setToast(
-        liveElsewhere
-          ? `${selected.name} is current for future work. The live terminal stayed in its existing folder.`
-          : `${selected.name} is open in Workshop. No process was started.`
-      );
+      await workInProject(target);
     } catch (reason) {
       setToast(
         reason instanceof Error
@@ -5240,31 +5379,43 @@ export function App(): ReactNode {
   }
 
   async function workInProject(project: WorkspaceProjectSummary): Promise<void> {
-    if (!data) {
+    if (!data || projectActivationBusyRef.current) {
       return;
     }
+    projectActivationBusyRef.current = true;
+    setProjectActivationBusy(true);
     try {
-      const selected = await window.hearth.selectWorkspaceProject(project.id);
-      const terminalLive = Boolean(
-        data.terminal.session &&
-        ["starting", "running", "waiting"].includes(data.terminal.session.lifecycle)
-      );
-      if (terminalLive && data.terminal.session?.cwd !== selected.rootPath) {
-        setToast(`${selected.name} is ready for the next Workshop session.`);
-      } else {
-        setToast(`${selected.name} is now the working project.`);
-      }
+      const activation = await window.hearth.activateWorkspaceProject(project.id);
       const state = await window.hearth.setRoute("workshop");
       const fresh = await window.hearth.bootstrap();
       setData({
         ...fresh,
         state,
         workspace: {
-          selectedProject: selected
-        }
+          selectedProject: activation.project
+        },
+        terminal: activation.terminal
       });
+      const parkedName = activation.parkedProjectRoot
+        ?.split(/[\\/]/)
+        .filter(Boolean)
+        .at(-1);
+      const targetSession = activation.terminal.session;
+      const targetReadyToResume = Boolean(
+        targetSession?.kind === "claude" &&
+        targetSession.claudeSessionId &&
+        targetSession.claudeResumable
+      );
+      setToast(
+        parkedName
+          ? `${parkedName} is parked. ${activation.project.name} is current${targetReadyToResume ? " and ready to resume" : ""}.`
+          : `${activation.project.name} is now the working project${targetReadyToResume ? " and its Claude session is ready to resume" : ""}.`
+      );
     } catch (reason) {
       setToast(reason instanceof Error ? reason.message : "That project could not be selected.");
+    } finally {
+      projectActivationBusyRef.current = false;
+      setProjectActivationBusy(false);
     }
   }
 
@@ -5421,6 +5572,7 @@ export function App(): ReactNode {
             onUpdateObjective={updateObjective}
             onNavigate={(next) => void navigate(next)}
             onWorkHere={workInProject}
+            projectActivationBusy={projectActivationBusy}
             onCapture={capture}
             onUpdateCapture={updateCapture}
             onOpenNote={(captureId) => {
@@ -5467,7 +5619,7 @@ export function App(): ReactNode {
               onStop={stopTerminal}
               onOwner={setTerminalOwner}
               onInstruction={passTerminalInstruction}
-              onTalk={(text) => sendAgentMessage("maker", text, "workshop")}
+              onTalk={(text) => sendAgentMessage("maker", text, "resident")}
               onConfigureSession={configureMakerSession}
               stream={agentStreams.maker}
               workRequestId={makerWorkRequestId}
@@ -5492,6 +5644,8 @@ export function App(): ReactNode {
               onCriticProposal={handoffExecutionResultToCritic}
               onOpenCritic={openCritic}
               onNotify={setToast}
+              onReturnToTerminalProject={returnToTerminalProject}
+              onParkAndOpenSelectedProject={parkTerminalAndOpenSelectedProject}
               initialDraft={makerDraft?.destination === "workshop" ? makerDraft : null}
               onGather={() => {
                 const latest = data.workshop.turns.at(-1);

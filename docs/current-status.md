@@ -1,7 +1,7 @@
 # Current status
 
-This is the current engineering snapshot for Hearth 0.56.0. It records the Living Room and Archive
-furnishing pass completed and verified on Windows on 2026-08-11.
+This is the current engineering snapshot for Hearth 0.59.6. It records the completed whole-house
+environmental, Companion, and unified Workshop pass, verified on Windows on 2026-08-18.
 
 ## What is already working
 
@@ -9,9 +9,14 @@ Hearth is a functional Windows x64 prototype rather than a static interface conc
 
 - Home, Study, Workshop, Living Room, Library, Studio, Archive, and the paired Companion surface
   share one local source of truth.
-- Workshop owns a real ConPTY terminal and a separate managed Claude Code ACP session.
-- Managed Maker sessions are project-scoped, resumable, interruptible, permission-aware, and able to
-  render plans, thoughts, tool activity, diffs, subagents, modes, effort, and token usage.
+- Workshop presents one real, project-scoped Claude Code ConPTY session as its technical source of
+  truth; the TUI is no longer duplicated by a separate Hearth-rendered workstream.
+- Maker is the personality of the visible Claude Code session in Workshop. The side rail is a
+  project-scoped notebook and presence layer, not a second model conversation or input surface.
+- Stored and resumable terminal identities are selected by canonical project path. A live session
+  never silently follows a different Study selection.
+- Study and Archive browsing do not mutate the working project. Explicit Workshop activation is one
+  core-owned park-select-load operation, so the project label and loaded terminal cannot diverge.
 - Critic uses an independent read-only Codex ACP route with a visible Claude fallback.
 - Living Room supports bounded one-resident conversations, roundtables, and pressure tests without
   merging private resident histories.
@@ -44,7 +49,20 @@ and explicit milestone records resume with 0.48.0:
 | 0.53.0 | Shared visual-language foundation and a fully furnished, compact-safe Home surface. |
 | 0.54.0 | Connected Study and Workshop identities with compact-safe session controls. |
 | 0.55.0 | Furnished Library and Studio identities with compact-safe resident and creative surfaces. |
-| 0.56.0 current | Furnished Living Room and Archive identities with compact-safe conversation and retention surfaces. |
+| 0.56.0 | Furnished Living Room and Archive identities with compact-safe conversation and retention surfaces. |
+| 0.57.0 | Rebuilt Living Room as the first environmental room: arrival wall, gathering surface, inhabited household nook, and compact-safe resident presence. |
+| 0.58.0 | Completed the whole-house environmental pass, final expressive Companion identity, public screenshots, and release-scale visual verification. |
+| 0.59.0 | Restored Claude Code's native Shift+Tab mode cycle in Workshop using the Kitty keyboard protocol and added a live-Claude regression smoke test. |
+| 0.59.1 | Moved Shift+Tab into xterm's native custom-key pipeline so physical Windows input is handled at the terminal layer. |
+| 0.59.2 | Made Workshop own Shift+Tab across the mounted terminal surface, including when Chromium focus has escaped onto a nearby control. |
+| 0.59.3 | Removed the split managed/native Workshop surfaces. The main workbench is now the real Claude Code TUI, with Maker beside the same visible session. |
+| 0.59.4 | Scoped stored and resumable Workshop sessions by project path. A live cross-project session now stays attached to its original project and presents explicit stay-or-park choices. |
+| 0.59.5 | Repaired project activation as an atomic park-select-load transition, separated Study browsing from working-project selection, and made the explicit saved project authoritative over stray activity from an older terminal. |
+| 0.59.6 current | Serialized overlapping project activations, preserved newest bounded conversations, stabilized intentional terminal stops and destructive Archive removal, and bounded superseded lifecycle metadata. |
+
+After the 0.57.0 Living Room proof, the same environmental standard was applied selectively across
+Home, Study, Workshop, Library, Studio, and Archive. Hearth 0.58.0 records that work and the final
+Companion identity as one verified completion checkpoint.
 
 These are implementation facts, not retroactively invented milestones. Future completed work should
 resume explicit milestone records or maintain a changelog so the public history does not drift again.
@@ -59,8 +77,11 @@ resume explicit milestone records or maintain a changelog so the public history 
   coupling decoration to navigation behavior.
 - At 1080×720 Home becomes a readable single column. The Electron suite asserts that both the
   document and Home surface remain horizontally contained.
-- The room identities are now furnished through 0.56.0. Companion's final expressive form remains
-  a separate pass rather than being implied complete by the room work.
+- Every room is now furnished, and Companion has truthful idle, listening, thinking, and reply
+  visuals derived from one stable charcoal, walnut, brass, and amber identity.
+- Companion now uses a validated v2 atlas exported as isolated frames for nine standard states and
+  sixteen pointer-tracking directions. Click-to-chat preserves the full resident, exact half-turns
+  avoid the oversized upper route, and reduced-motion mode remains deterministic.
 - Study now balances paper, linen, warm editorial light, and distinct brief, evidence, conversation,
   Critic, and project-browser layers without changing review behavior.
 - Workshop now uses a dark creative-workroom surround with copper and green atmosphere while the
@@ -81,6 +102,22 @@ resume explicit milestone records or maintain a changelog so the public history 
   bounded destructive confirmation surface without changing recovery or permanent-removal rules.
 - Living Room and Archive both remain contained at 1080×720; ambient decoration is explicitly kept
   inside room bounds so compact layouts do not gain hidden horizontal or vertical scrolling.
+
+- Living Room now establishes the stronger room standard: architecture and lighting shape the
+  information hierarchy instead of merely recoloring familiar cards. Its arrival wall, central
+  gathering surface, and resident nook remain ordinary responsive UI rather than a virtual room.
+- Compact Living Room intentionally removes wall art and plant detail, condenses the resident nook,
+  and preserves portraits, readable messages, controls, and the active conversation.
+- Home now opens onto a warm morning wall and settles into darker grounded work surfaces; Study
+  reads as an inhabited office; Workshop keeps the terminal dominant inside a detailed workbench;
+  Library carries continuous shelves and reading light; Studio uses a bright creative-loft wall;
+  and Archive fades from illuminated records into its quiet working surface.
+- The persistent toolbar now uses a restrained warm material treatment across every room. It stays
+  visually stable while no longer appearing as unrelated bright application chrome.
+- Living Room now uses a detailed olive-and-walnut interior beneath the gathering surface, with
+  seating, textiles, books, and fireplace light composed around the interface. Its existing shelf,
+  lamp, and trailing plant remain foreground layers; full and compact resident identity remains
+  intact.
 
 ## Phase 4 outcome
 
@@ -240,13 +277,14 @@ two-hour absolute ceiling is intentionally not waited out in automation.
 
 ## Current quality signal
 
-- Type checking, 112 unit tests across 15 files, the production build, and all 14 serial Electron
-  scenarios pass for 0.52.0. The rebuilt 0.50.0 Claude/Codex packaged baseline also passes; the
-  0.49.1 destructive health drill remains the latest runtime-failure evidence.
-- The 0.52.0 Electron run exercised the complete practice review lifecycle, responsive containment,
-  canonical reference capture, Library and Study cards, context
-  inspection, migration persistence, compact containment, continuity, real ConPTY behavior, handoffs, Living Room,
-  project-scoped conversations, reload/relaunch, and responsive layouts.
+- Both dependency audits, type checking, 121 unit tests across 17 files, the production build, and
+  all 16 serial Electron scenarios pass for 0.59.6. The packaged x64 build also passes
+  project discovery, tray close/relaunch, and real ConPTY input/output; the 0.49.1 destructive
+  health drill remains the latest runtime-failure evidence.
+- The 0.58.0 Electron run exercised the complete practice review lifecycle, canonical reference
+  capture, Library and Study cards, context inspection, migration persistence, continuity, real
+  ConPTY behavior, handoffs, Living Room, project-scoped conversations, reload/relaunch, Companion,
+  and responsive layouts at 1440×900, 1080×720, and 1040×700.
 - Project discovery and edit recovery now compare canonical Windows paths, so short-path aliases such
   as `RUNNER~1` cannot make Hearth reject its own bounded recovery files. Project tests also close
   SQLite handles before removing their isolated workspaces.

@@ -1,6 +1,6 @@
 # Hearth architecture
 
-This document describes the current 0.56.0 implementation. It is an implementation map, not a
+This document describes the current 0.59.6 implementation. It is an implementation map, not a
 future-state design.
 
 ## Process model
@@ -73,33 +73,25 @@ Model identity also carries provenance. Hearth labels a configured alias as conf
 the bounded Claude transcript reports the model actually used. Codex is named as the provider, but
 Hearth does not invent an underlying Codex model when the adapter does not disclose one.
 
-## Managed Workshop flow
+## Workshop flow
 
-1. The user selects a discovered project.
-2. Core resolves and revalidates the canonical project root.
-3. Maker opens or resumes a project-scoped Claude ACP session.
-4. Before sending, core records a bounded context manifest: the exact assembled prompt character
-   count, contribution sizes, truncation boundaries, fresh/resumed state, and recent user tail.
-   This is local accounting and is never presented as provider token use.
-5. ACP events become visible plans, thoughts, tool activities, diffs, permissions, modes, effort,
-   and token usage.
-6. Provider and tool events renew an idle deadline while a separate two-hour safety ceiling bounds
-   one turn. The persisted health record contains timestamps, process/connection state, failure
-   class, fate, and retry safety—never raw provider output.
-7. The complete technical stream stays in Workshop; Maker's side conversation provides the brief
-   human interpretation.
-8. Core persists bounded turn summaries and session identity, not raw PTY output.
+1. The user browses any discovered project in Study without changing the current working project.
+2. Choosing **Work in _project_** invokes one core-owned activation operation.
+3. Core parks a live session belonging to another project, persists the target selection, and loads
+   only the target project's own parked terminal identity.
+4. Core resolves and revalidates the canonical project root.
+5. Workshop opens or resumes the named Claude Code session stored for that project path in a Windows ConPTY.
+6. xterm renders Claude Code's real TUI. Plans, thinking state, tool activity, diffs, permissions,
+   modes, effort, token counters, and prompts come directly from Claude Code rather than a Hearth
+   reconstruction.
+7. Native terminal input—including Claude's modified-key protocol—is forwarded to that same process.
+8. Maker is the personality of that visible Claude Code session. The side rail is a project notebook
+   and presence layer; it does not create a second conversation or competing input surface.
+9. Reviewed proposal controls can pass a bounded instruction into the same visible terminal.
+10. Core persists terminal identity and resumability per project path, not raw PTY output.
 
-Provider Doctor reads the same runtime-owned state. It reports adapter and executable discovery,
-auth confidence, ACP handshake/process/session state, last success, and the last bounded error. It
-does not install software, authenticate a provider, or replay work.
-
-If a second message arrives during an active turn, core cancels the first ACP prompt and waits for
-its completion promise before sending the new direction. This provides Claude Code-style
-interruption without two concurrent tool turns sharing one session.
-
-The separate terminal tab remains a real ConPTY surface for Windows PowerShell or interactive Claude
-Code. Terminal ownership and the managed Maker session are explicit, separate concepts.
+Claude and Codex ACP integrations remain available for resident reasoning, Critic review, and bounded
+household orchestration. They are not rendered as a second Claude-looking Workshop terminal.
 
 ## Project review and edits
 

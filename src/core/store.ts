@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
 import type { DatabaseSync as DatabaseHandle } from "node:sqlite";
 import type {
@@ -2032,10 +2032,13 @@ export class HearthStore {
           : null,
         messages: this.db
           .prepare(`
-            SELECT * FROM living_room_messages
-            WHERE thread_id = ?
-            ORDER BY created_at ASC
-            LIMIT 200
+            SELECT * FROM (
+              SELECT *, rowid AS source_rowid FROM living_room_messages
+              WHERE thread_id = ?
+              ORDER BY created_at DESC, rowid DESC
+              LIMIT 200
+            )
+            ORDER BY created_at ASC, source_rowid ASC
           `)
           .all(id)
           .map((message) =>
@@ -3767,15 +3770,39 @@ export class HearthStore {
         .get(archiveId) as Record<string, unknown> | undefined;
       if (row) {
         const edit = mapProjectEdit(row);
-        removedFile = this.removeManagedBackupFile(
+        const backupPath = this.managedBackupFilePath(
           edit.backupPath,
           path.join(this.backupsPath, "project-edits")
         );
-        changes = Number(
-          this.db
-            .prepare("DELETE FROM project_edits WHERE id = ?")
-            .run(archiveId).changes
-        );
+        const stagedPath = backupPath
+          ? `${backupPath}.pending-delete-${randomUUID()}`
+          : null;
+        if (backupPath && stagedPath) renameSync(backupPath, stagedPath);
+        try {
+          changes = Number(
+            this.db
+              .prepare("DELETE FROM project_edits WHERE id = ?")
+              .run(archiveId).changes
+          );
+          if (changes !== 1) {
+            throw new Error("That Archive record is no longer available to remove.");
+          }
+        } catch (error) {
+          if (backupPath && stagedPath && existsSync(stagedPath)) {
+            renameSync(stagedPath, backupPath);
+          }
+          throw error;
+        }
+        if (stagedPath) {
+          try {
+            rmSync(stagedPath, { force: true });
+            removedFile = true;
+          } catch {
+            // The Archive record is gone, but the staged private backup remains
+            // recoverable for a later housekeeping pass.
+            removedFile = false;
+          }
+        }
       }
     }
     if (changes !== 1) {
@@ -3791,9 +3818,13 @@ export class HearthStore {
     }
     return this.db
       .prepare(`
-        SELECT * FROM idea_messages
-        WHERE capture_id = ?
-        ORDER BY created_at ASC, rowid ASC
+        SELECT * FROM (
+          SELECT *, rowid AS source_rowid FROM idea_messages
+          WHERE capture_id = ?
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 200
+        )
+        ORDER BY created_at ASC, source_rowid ASC
       `)
       .all(captureId)
       .map((row) => mapIdeaMessage(row as Record<string, unknown>));
@@ -4382,16 +4413,43 @@ export class HearthStore {
     return created;
   }
 
-  getLatestTerminalSession(): TerminalSession | null {
-    const row = this.db
-      .prepare(`
-        SELECT * FROM terminal_sessions
-        WHERE project_id = ?
-        ORDER BY last_activity_at DESC
-        LIMIT 1
-      `)
-      .get(PROJECT_ID) as Record<string, unknown> | undefined;
+  getLatestTerminalSession(rootPath?: string): TerminalSession | null {
+    const row = rootPath
+      ? this.db
+          .prepare(`
+            SELECT * FROM terminal_sessions
+            WHERE project_id = ? AND cwd = ? COLLATE NOCASE
+            ORDER BY last_activity_at DESC
+            LIMIT 1
+          `)
+          .get(PROJECT_ID, path.resolve(rootPath)) as Record<string, unknown> | undefined
+      : this.db
+          .prepare(`
+            SELECT * FROM terminal_sessions
+            WHERE project_id = ?
+            ORDER BY last_activity_at DESC
+            LIMIT 1
+          `)
+          .get(PROJECT_ID) as Record<string, unknown> | undefined;
     return row ? mapTerminalSession(row) : null;
+  }
+
+  stopOrphanedTerminalSessions(stoppedAt = now()): number {
+    const result = this.db
+      .prepare(`
+        UPDATE terminal_sessions
+        SET
+          lifecycle = 'stopped',
+          pid = NULL,
+          exited_at = ?,
+          claude_session_id = CASE
+            WHEN kind = 'claude' AND claude_resumable = 0 THEN NULL
+            ELSE claude_session_id
+          END
+        WHERE lifecycle IN ('starting', 'running', 'waiting')
+      `)
+      .run(stoppedAt);
+    return Number(result.changes);
   }
 
   getWorkshopTurns(workspace: ConversationScope): WorkshopTurn[] {
@@ -4651,13 +4709,30 @@ export class HearthStore {
         session.cols,
         session.rows
       );
+    this.db
+      .prepare(`
+        DELETE FROM terminal_sessions
+        WHERE id IN (
+          SELECT id FROM terminal_sessions
+          WHERE project_id = ? AND cwd = ? COLLATE NOCASE
+          ORDER BY last_activity_at DESC, rowid DESC
+          LIMIT -1 OFFSET 12
+        )
+      `)
+      .run(session.projectId, session.cwd);
   }
 
   getWorkspaceSelection(): string | null {
+    return this.getWorkspaceSelectionRecord()?.rootPath ?? null;
+  }
+
+  getWorkspaceSelectionRecord(): { rootPath: string; updatedAt: string } | null {
     const row = this.db
-      .prepare("SELECT value FROM workspace_preferences WHERE key = ?")
+      .prepare("SELECT value, updated_at FROM workspace_preferences WHERE key = ?")
       .get("selected-project-root") as Record<string, unknown> | undefined;
-    return row ? asString(row.value) || null : null;
+    const rootPath = row ? asString(row.value) : "";
+    const updatedAt = row ? asString(row.updated_at) : "";
+    return rootPath && updatedAt ? { rootPath, updatedAt } : null;
   }
 
   saveWorkspaceSelection(rootPath: string): void {
@@ -4668,6 +4743,7 @@ export class HearthStore {
         ON CONFLICT(key) DO UPDATE SET
           value = excluded.value,
           updated_at = excluded.updated_at
+        WHERE LOWER(workspace_preferences.value) <> LOWER(excluded.value)
       `)
       .run("selected-project-root", rootPath, now());
   }
@@ -4867,8 +4943,8 @@ export class HearthStore {
       );
   }
 
-  private removeManagedBackupFile(filePath: string, allowedRoot: string): boolean {
-    if (!filePath) return false;
+  private managedBackupFilePath(filePath: string, allowedRoot: string): string | null {
+    if (!filePath) return null;
     const root = path.resolve(allowedRoot);
     const target = path.resolve(filePath);
     const relative = path.relative(root, target);
@@ -4880,10 +4956,16 @@ export class HearthStore {
     ) {
       throw new Error("Hearth refused to remove a backup outside its private backup folder.");
     }
-    if (!existsSync(target)) return false;
+    if (!existsSync(target)) return null;
     if (!lstatSync(target).isFile()) {
       throw new Error("Hearth refused to remove a backup path that is not a file.");
     }
+    return target;
+  }
+
+  private removeManagedBackupFile(filePath: string, allowedRoot: string): boolean {
+    const target = this.managedBackupFilePath(filePath, allowedRoot);
+    if (!target) return false;
     rmSync(target, { force: true });
     return true;
   }
@@ -4958,14 +5040,17 @@ export class HearthStore {
     if (agent === "maker" && workspace) {
       return this.db
         .prepare(`
-          SELECT * FROM messages
-          WHERE
-            project_id = ?
-            AND agent = ?
-            AND workspace_project_id = ?
-            AND root_path = ? COLLATE NOCASE
-          ORDER BY created_at ASC
-          LIMIT 100
+          SELECT * FROM (
+            SELECT *, rowid AS source_rowid FROM messages
+            WHERE
+              project_id = ?
+              AND agent = ?
+              AND workspace_project_id = ?
+              AND root_path = ? COLLATE NOCASE
+            ORDER BY created_at DESC, rowid DESC
+            LIMIT 100
+          )
+          ORDER BY created_at ASC, source_rowid ASC
         `)
         .all(
           PROJECT_ID,
@@ -4977,10 +5062,13 @@ export class HearthStore {
     }
     return this.db
       .prepare(`
-        SELECT * FROM messages
-        WHERE project_id = ? AND agent = ?
-        ORDER BY created_at ASC
-        LIMIT 100
+        SELECT * FROM (
+          SELECT *, rowid AS source_rowid FROM messages
+          WHERE project_id = ? AND agent = ?
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 100
+        )
+        ORDER BY created_at ASC, source_rowid ASC
       `)
       .all(PROJECT_ID, agent)
       .map((row) => mapMessage(row as Record<string, unknown>));
@@ -5041,6 +5129,17 @@ export class HearthStore {
         VALUES (?, ?, ?, ?, ?)
       `)
       .run(randomUUID(), PROJECT_ID, kind, summary, now());
+    this.db
+      .prepare(`
+        DELETE FROM activity_events
+        WHERE id IN (
+          SELECT id FROM activity_events
+          WHERE project_id = ?
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT -1 OFFSET 2000
+        )
+      `)
+      .run(PROJECT_ID);
   }
 
   private makerReply(

@@ -75,6 +75,7 @@ if (!ownsPrimaryInstance) {
 let mainWindow: BrowserWindow | null = null;
 let quitting = false;
 let pendingWorkshopAttention: string | null = null;
+let focusedTerminalSessionId: string | null = null;
 let tray: Tray | null = null;
 
 const notifications = new QuietNotificationCenter(
@@ -775,6 +776,10 @@ function registerIpc(): void {
     assertTrustedSender(event);
     return core.invoke("selectWorkspaceProject", { projectId });
   });
+  ipcMain.handle("hearth:activate-workspace-project", (event, projectId: string) => {
+    assertTrustedSender(event);
+    return core.invoke("activateWorkspaceProject", { projectId });
+  });
   ipcMain.handle("hearth:get-workspace-project", (event, projectId: string) => {
     assertTrustedSender(event);
     return core.invoke("getWorkspaceProject", { projectId });
@@ -878,6 +883,14 @@ function registerIpc(): void {
     assertTrustedSender(event);
     return core.invoke("resumeTerminal", { owner });
   });
+  ipcMain.handle(
+    "hearth:set-terminal-keyboard-focus",
+    (event, sessionId: string | null) => {
+      assertTrustedSender(event);
+      focusedTerminalSessionId =
+        typeof sessionId === "string" && sessionId.length > 0 ? sessionId : null;
+    }
+  );
   ipcMain.handle(
     "hearth:terminal-input",
     (event, sessionId: string, data: string) => {
@@ -1029,6 +1042,30 @@ async function createWindow(): Promise<void> {
   }
   mainWindow.setMenuBarVisibility(false);
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (
+      focusedTerminalSessionId === null ||
+      input.type !== "rawKeyDown" ||
+      (input.key !== "Tab" && input.code !== "Tab") ||
+      !input.shift ||
+      input.alt ||
+      input.control ||
+      input.meta ||
+      input.isAutoRepeat
+    ) {
+      return;
+    }
+
+    // Physical Windows input arrives as rawKeyDown. Browser keyDown events
+    // remain owned by xterm's renderer handler, avoiding duplicate writes.
+    event.preventDefault();
+    const sessionId = focusedTerminalSessionId;
+    void core
+      .invoke("terminalInput", { sessionId, data: "\x1b[9;2u" })
+      .catch(() => {
+        // The terminal can exit between the keypress and the ConPTY write.
+      });
+  });
   mainWindow.webContents.on("will-navigate", (event) => {
     event.preventDefault();
   });
@@ -1039,6 +1076,9 @@ async function createWindow(): Promise<void> {
     if (pendingWorkshopAttention) {
       notifications.workshopAttention(pendingWorkshopAttention);
     }
+  });
+  mainWindow.on("blur", () => {
+    focusedTerminalSessionId = null;
   });
   mainWindow.on("close", (event) => {
     if (!quitting) {

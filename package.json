@@ -1,6 +1,6 @@
 {
   "name": "hearth",
-  "version": "0.56.0",
+  "version": "0.59.6",
   "private": true,
   "author": "Hearth",
   "license": "Apache-2.0",
@@ -33,6 +33,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
+    "test:claude-mode": "npm run build && node scripts/claude-mode-smoke.mjs",
     "test:packaged": "node scripts/packaged-smoke.mjs",
     "test:packaged:health": "node scripts/packaged-health-smoke.mjs",
     "verify": "npm run typecheck && npm run test && npm run test:e2e",

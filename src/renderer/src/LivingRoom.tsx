@@ -18,6 +18,9 @@ import type {
 import { ResidentAvatar } from "./ResidentAvatar";
 import { residentProviderLabel } from "./provider-label";
 import { ReferenceCard } from "./ReferenceCard";
+import { CompanionCharacter } from "./CompanionCharacter";
+import livingLedgePlant from "./assets/rooms/living-ledge-plant.png";
+import livingShelf from "./assets/rooms/living-shelf.png";
 
 const RESIDENTS: Array<{
   id: AgentKey;
@@ -48,28 +51,11 @@ function providerLabel(data: BootstrapData, agent: AgentKey): string {
 }
 
 function CompanionFace({ thinking = false }: { thinking?: boolean }): ReactNode {
-  return (
-    <span
-      className="companion-character companion-character--compact living-companion-face"
-      data-mood={thinking ? "thinking" : "listening"}
-      aria-hidden="true"
-    >
-      <span className="companion-spark"><i /></span>
-      <span className="companion-ear companion-ear--left" />
-      <span className="companion-ear companion-ear--right" />
-      <span className="companion-body">
-        <span className="companion-brows"><i /><i /></span>
-        <span className="companion-eyes"><i><b /></i><i><b /></i></span>
-        <span className="companion-cheeks"><i /><i /></span>
-        <span className="companion-mouth" />
-        <span className="companion-heart"><i /></span>
-      </span>
-      <span className="companion-arm companion-arm--left" />
-      <span className="companion-arm companion-arm--right" />
-      <span className="companion-foot companion-foot--left" />
-      <span className="companion-foot companion-foot--right" />
-    </span>
-  );
+  return <CompanionCharacter
+    mood={thinking ? "thinking" : "listening"}
+    compact
+    className="living-companion-face"
+  />;
 }
 
 function LivingPortrait({
@@ -441,6 +427,10 @@ export function LivingRoom({
 
   return (
     <main className="room-content living-room">
+      <div className="living-atmosphere" aria-hidden="true">
+        <img className="living-atmosphere__shelf" src={livingShelf} alt="" />
+        <img className="living-atmosphere__plant" src={livingLedgePlant} alt="" />
+      </div>
       <header className="living-heading">
         <div>
           <p className="eyebrow">Living Room · shared household conversation</p>

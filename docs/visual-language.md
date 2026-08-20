@@ -47,12 +47,24 @@ Rooms share the same materials but change their balance:
 Projects and residents may add subtle identity, but no surface should feel transported to a
 different product.
 
+Material changes alone do not create a room. Each room also needs an environmental composition:
+an identifiable arrival area, a dominant working surface, integrated resident presence, and a
+distinct lighting rhythm. These cues may suggest a wall, desk, shelf, rug, lamp, or window, but they
+remain flat interface composition rather than scenery the user must navigate. At compact sizes,
+ornament yields before controls, readable type, resident identity, or working space.
+
+When a room needs organic or architectural atmosphere, restrained photographic assets may replace
+symbolic CSS shapes. They must be compositionally integrated, desaturated to the house palette,
+noninteractive, and layered below working content. Generated scenery never carries meaning that is
+absent from accessible text or controls.
+
 ## Residents and Companion
 
 Maker, Librarian, and Critic are first-class residents, not status icons. Their portrait size,
 expression, placement, and conversation should make their presence readable without crowding the
-work. Companion needs a final expressive form of its own; the current CSS character remains a
-functional placeholder until that dedicated pass is complete.
+work. Companion's final identity is a compact charcoal, walnut, and brass hearthling whose
+expressive dark face, articulated task lamp, hands, and recessed indoor treads react to truthful
+conversation state. His movement remains ambient and bounded rather than roaming across the UI.
 
 ## Release gate
 

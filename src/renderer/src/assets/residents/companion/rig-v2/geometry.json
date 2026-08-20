@@ -1,0 +1,14 @@
+{
+  "width": 961,
+  "height": 1081,
+  "lampPivots": {
+    "lower": { "x": 164, "y": 687 },
+    "upper": { "x": 83, "y": 370 },
+    "shade": { "x": 251, "y": 91 }
+  },
+  "face": { "left": 318, "top": 304, "width": 430, "height": 260 },
+  "eyes": [
+    { "x": 454, "y": 426, "width": 82, "height": 58 },
+    { "x": 642, "y": 421, "width": 82, "height": 58 }
+  ]
+}

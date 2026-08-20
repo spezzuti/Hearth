@@ -11,7 +11,7 @@ saved research, ideas, decisions, and clear return points.
 
 ![Hearth Workshop showing a managed Claude Code workstream beside Maker](docs/images/workshop.png)
 
-> **Project status:** functional pre-1.0 prototype, version 0.56.0. Hearth is Windows x64 only and is
+> **Project status:** functional pre-1.0 prototype, version 0.59.6. Hearth is Windows x64 only and is
 > being developed in public from a working personal system. It is not yet a supported commercial
 > product.
 
@@ -55,8 +55,9 @@ The core workflow is intentionally not an autonomous everything-app:
    recommended next move.
 2. **Review in Study.** Browse bounded project files and diffs, assemble explicit evidence, and talk
    separately with Maker or Critic.
-3. **Build in Workshop.** Run a managed Claude Code session with plans, tool activity, diffs, token
-   use, modes, effort, permissions, and interruption visible in one workstream.
+3. **Build in Workshop.** Work inside the real Claude Code TUI—with its plans, tool activity, diffs,
+   tokens, modes, effort, permissions, and interruption behavior intact—while Maker keeps the useful
+   project orientation beside it.
 4. **Discuss in Living Room.** Call one resident, gather a roundtable, or run a bounded adversarial
    pressure test without leaking private conversations or raw terminal output.
 5. **Keep the surrounding material.** Library owns links and research, Studio owns ideas and loose
@@ -64,16 +65,16 @@ The core workflow is intentionally not an autonomous everything-app:
 
 ## The difference
 
-- **Claude Code remains visible.** Hearth does not reduce an agent run to a spinner and a final
-  paragraph. Workshop renders the technical stream while Maker supplies the short human version.
-- **Conversation and execution are distinct.** Maker can be personable without pretending every chat
-  message ran a command. Tool authority exists only on the managed Workshop surface.
+- **Claude Code remains Claude Code.** Hearth embeds its real Windows terminal UI rather than
+  rebuilding or summarizing the technical stream.
+- **Maker and Claude Code are one Workshop identity.** The terminal is the conversation and working
+  surface. Maker’s rail is a notebook, status, and decision layer—not a competing chat box.
 - **Residents have separate perspectives and context.** Maker builds, Critic challenges, Librarian
   retrieves, and Companion synthesizes. Their private histories are not silently merged.
 - **Handoffs are deliberate and bounded.** Project evidence, Living Room context, edit proposals,
   terminal observations, and execution reports each cross an explicit boundary.
 - **Continuity is product state.** Project selection, conversations, return points, decisions, and
-  managed session summaries survive renderer reloads and relaunches without claiming that a dead
+  project-scoped terminal identities survive renderer reloads and relaunches without claiming that a dead
   process is still alive.
 - **The interface is designed as a place to return to.** The room metaphor shapes information
   architecture and visual tone without becoming a virtual house the user must walk through.
@@ -116,19 +117,20 @@ decisions, recent reports, and conversation—no terminal, project files, edits,
 
 ## Claude Code and resident routing
 
-Hearth uses the Agent Client Protocol adapters rather than screen-scraping a terminal session.
+Hearth uses ACP adapters for independent resident routes. Workshop separately runs the installed
+Claude Code CLI inside a real ConPTY so its native interface and keyboard behavior remain intact.
 
 | Resident | Normal provider | Fallback | Authority |
 | --- | --- | --- | --- |
-| **Maker** | Claude Code / Opus | Bounded local conversation | Tools only in managed Workshop |
+| **Maker** | Claude Code / Opus in Workshop | Bounded resident conversation outside Workshop | Claude Code tools inside the selected project |
 | **Critic** | Codex via ACP | Claude Code / Fable, then local | Read-only review; never owns the terminal |
 | **Librarian** | Claude Code / Opus | Local catalog retrieval | No install, clone, save, or edit tools |
 | **Companion** | Claude Code / Opus | Local conversation | No project, terminal, edit, or execution routes |
 
-Workshop keeps one managed Claude session per project. A new user message sent while Maker is active
-cancels the current ACP turn, waits for it to release the session, marks it **Interrupted**, and then
-sends the replacement direction through the same session. Hearth never runs two managed tool turns
-concurrently.
+Workshop remembers one resumable Claude Code identity per project path while allowing only one live
+ConPTY process. Selecting another project never retargets the live process: Hearth offers to return
+to its project or park it before opening the selected project. Browsing a project in Study does not
+change the working project; choosing **Work in _project_** performs one park-select-load transition.
 
 ## Architecture
 
@@ -180,8 +182,8 @@ npm ci
 npm run dev
 ```
 
-That starts the local desktop app. Choose a project in **Study**, then choose **Work here** to open
-its managed Workshop session. The normal project root stays on your machine; Hearth reads and acts
+That starts the local desktop app. Choose a project in **Study**, then choose **Work in _project_** to open
+its project-scoped Workshop session. The normal project root stays on your machine; Hearth reads and acts
 only through its explicit project and terminal contracts.
 
 To explore the complete interface without invoking Claude Code or Codex:
@@ -210,7 +212,7 @@ database.
 | `npm run test:packaged:health` | Run the live long-tool and provider-failure release drill |
 | `npm run package` | Build the Windows NSIS installer |
 
-The current release gate covers 112 unit tests across 15 files and 14 serial Electron scenarios,
+The current release gate covers 121 unit tests across 17 files and 16 serial Electron scenarios,
 including renderer reload, relaunch, ConPTY lifecycle, project containment, bounded edits, resident
 handoffs, Living Room orchestration, compact layouts, archive recovery, and the managed Workshop.
 The packaged smoke additionally exercises the unpacked binary, real PTY, and optional live ACP

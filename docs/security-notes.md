@@ -50,20 +50,19 @@
 - Managed Maker may read the tail of its own Claude session transcript to recover the latest
   top-level assistant model and numeric token usage. It does not persist or expose transcript text;
   the extracted identity is marked as reported rather than configured.
-- When the user explicitly gives Maker the terminal seat, a non-social Maker chat turn receives at
-  most the latest 120 cleaned lines and 16,000 characters of the in-memory terminal view. Common
-  credential assignment, authorization header, and known token shapes are redacted locally first.
-- The transient terminal view is sent only to Maker's configured reasoning provider. Its text is never
-  sent to Companion, Librarian, or Critic and is never added to conversation history, House Memory,
-  a Return Pack, an execution report, or any persisted record.
+- Workshop's Claude Code process is the canonical Maker conversation and workstream. The right rail
+  does not run a second resident chat against a copied terminal transcript.
+- Bounded terminal text may still be used by explicit handoff, reporting, or context-inspection
+  flows. Common credential assignment, authorization header, and known token shapes are redacted
+  locally first; raw terminal output is never persisted as resident history or House Memory.
 - The per-turn context manifest persists only contribution kind, character count, truncation flag,
   fixed boundary description, fresh/resumed state, and a bounded tail of already-persisted user
   directions. It does not persist terminal-view text, source evidence, provider prompts, plans, tool
   results, or hidden provider state.
 - Terminal text is explicitly delimited as incomplete, unverified, untrusted evidence. It cannot
   grant tools or authority, and any instruction embedded in output must be ignored.
-- Giving Maker the terminal seat does not cause autonomous input. Claude Code receives text only
-  through the existing explicit proposal, approval, ownership, and instruction-relay gates.
+- Hearth does not inject autonomous input into Claude Code. Terminal input comes from deliberate
+  user interaction or another explicitly approved, visible handoff path.
 - An approved Maker handoff asks Claude Code for one delimited execution report. Hearth
   keeps only the bounded changed-file, validation, concern, and decision fields; the
   temporary parser buffer is capped and never persisted.

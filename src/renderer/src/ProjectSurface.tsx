@@ -144,7 +144,9 @@ function ProjectEditDiff({ draft }: { draft: ProjectEditDraft }): ReactNode {
 export function ProjectSurface({
   currentProject,
   terminalLive,
+  terminalRoot,
   onWorkHere,
+  activationBusy,
   onShareContext,
   onOpenMaker,
   notes,
@@ -156,7 +158,9 @@ export function ProjectSurface({
 }: {
   currentProject: WorkspaceProjectSummary;
   terminalLive: boolean;
+  terminalRoot: string | null;
   onWorkHere: (project: WorkspaceProjectSummary) => Promise<void>;
+  activationBusy: boolean;
   onShareContext: (
     agent: ContextAgent,
     project: WorkspaceProjectSummary,
@@ -214,6 +218,20 @@ export function ProjectSurface({
     () => catalog?.projects.find((project) => project.id === selectedId) ?? null,
     [catalog, selectedId]
   );
+  const selectedProjectOwnsLiveTerminal = Boolean(
+    selectedProject &&
+    terminalLive &&
+    terminalRoot?.toLocaleLowerCase() === selectedProject.rootPath.toLocaleLowerCase()
+  );
+  const workshopActionLabel = !selectedProject
+    ? "Work here"
+    : selectedProjectOwnsLiveTerminal
+      ? "Return to Workshop"
+      : terminalLive
+        ? `Switch to ${selectedProject.name}`
+        : selectedProject.id === currentProject.id
+          ? "Open Workshop"
+          : `Work in ${selectedProject.name}`;
 
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -293,6 +311,15 @@ export function ProjectSurface({
   useEffect(() => {
     void loadCatalog();
   }, []);
+
+  useEffect(() => {
+    if (
+      orientation &&
+      catalog?.projects.some((project) => project.id === orientation.projectId)
+    ) {
+      setSelectedId(orientation.projectId);
+    }
+  }, [catalog, orientation]);
 
   useEffect(() => {
     if (!selectedId || !catalog?.projects.some((project) => project.id === selectedId)) {
@@ -719,6 +746,7 @@ export function ProjectSurface({
               )}
               key={project.id}
               type="button"
+              disabled={activationBusy}
               onClick={() => setSelectedId(project.id)}
             >
               <span className="project-list-glyph">
@@ -773,10 +801,11 @@ export function ProjectSurface({
             <button
               className="small-button"
               type="button"
-              disabled={!selectedProject}
+              disabled={!selectedProject || activationBusy}
               onClick={() => selectedProject && void onWorkHere(selectedProject)}
             >
-              {terminalLive ? "Use next" : "Work here"} <span aria-hidden="true">→</span>
+              {activationBusy ? "Switching…" : workshopActionLabel}{" "}
+              <span aria-hidden="true">→</span>
             </button>
           </div>
         </header>

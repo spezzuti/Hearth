@@ -9,10 +9,11 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { ProjectManager } from "../../src/core/projects";
 import { HearthStore } from "../../src/core/store";
-import type { MakerProposal } from "../../src/shared/contracts";
+import type { MakerProposal, TerminalSession } from "../../src/shared/contracts";
 
 const cleanup: string[] = [];
 const openStores = new Set<HearthStore>();
@@ -49,6 +50,55 @@ afterEach(async () => {
 });
 
 describe("ProjectManager bounded project review", () => {
+  it("keeps an explicit project selection authoritative over stray terminal activity", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "hearth-project-recency-"));
+    cleanup.push(root);
+    const dataDirectory = path.join(root, "data");
+    const homeRoot = path.join(root, "home");
+    const firstRoot = path.join(homeRoot, "AOLRevive");
+    const secondRoot = path.join(homeRoot, "PersonalOS");
+    for (const projectRoot of [firstRoot, secondRoot]) {
+      await mkdir(path.join(projectRoot, ".git"), { recursive: true });
+      await writeFile(path.join(projectRoot, ".git", "HEAD"), "ref: refs/heads/main\n");
+    }
+
+    const store = await openTestStore(dataDirectory, secondRoot);
+    store.saveWorkspaceSelection(secondRoot);
+    const terminal: TerminalSession = {
+      id: "f32c059a-b89e-4a31-a9fd-82e44719f712",
+      projectId: "project-hearth",
+      cwd: firstRoot,
+      pid: null,
+      kind: "claude",
+      owner: "user",
+      lifecycle: "stopped",
+      startedAt: "2100-01-01T11:00:00.000Z",
+      lastActivityAt: "2100-01-01T12:00:00.000Z",
+      exitedAt: "2100-01-01T12:00:00.000Z",
+      exitCode: 0,
+      claudeSessionId: "960e9897-db19-4c10-9ebc-49d94d7bc046",
+      claudeName: "Hearth Maker · AOLRevive",
+      claudeResumable: true,
+      cols: 120,
+      rows: 32
+    };
+    store.saveTerminalSession(terminal);
+    const database = new DatabaseSync(store.databasePath);
+    database.prepare(`
+      UPDATE workspace_preferences
+      SET updated_at = ?
+      WHERE key = 'selected-project-root'
+    `).run("2099-01-01T12:00:00.000Z");
+    database.close();
+
+    const restored = new ProjectManager(store, homeRoot, firstRoot);
+    expect((await restored.list()).selectedProject.rootPath).toBe(await realpath(secondRoot));
+    const restoredSelectionAt = store.getWorkspaceSelectionRecord()?.updatedAt;
+    await restored.list(true);
+    expect(store.getWorkspaceSelectionRecord()?.updatedAt).toBe(restoredSelectionAt);
+    store.close();
+  });
+
   it("rejects the packaged install folder and repairs selection to the real repo", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "hearth-installed-project-"));
     cleanup.push(root);

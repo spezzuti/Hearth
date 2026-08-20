@@ -281,9 +281,8 @@ try {
     .getByLabel("Rooms")
     .getByRole("button", { name: /Workshop/ })
     .click();
-  await page.getByRole("button", { name: "Terminal", exact: true }).click();
   await page
-    .getByRole("button", { name: /Windows PowerShell/ })
+    .getByRole("button", { name: /^Open .*PowerShell/ })
     .first()
     .click();
 

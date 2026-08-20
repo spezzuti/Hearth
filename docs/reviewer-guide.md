@@ -29,8 +29,8 @@ npm run dev
 1. **Home:** inspect the Return Pack, current-project truth, universal capture, and household state.
 2. **Study → Projects:** select a repository, browse a file, inspect Git changes, and use **Find
    context** to see how explicit multi-file evidence is assembled.
-3. **Workshop:** compare the managed Maker session with the separate terminal tab. Start PowerShell
-   to verify that the terminal is a real ConPTY rather than a styled text area.
+3. **Workshop:** start PowerShell or Claude Code and verify that the main workbench is a real ConPTY
+   rather than a styled or reconstructed activity stream.
 4. **Living Room:** switch among Conversation, Roundtable, and Pressure test. Notice that the called
    residents and context card are visible before sending.
 5. **Library / Studio:** capture a link and an `@idea`; each record has one canonical home rather than
@@ -46,17 +46,16 @@ live model quality.
 Install and authenticate Claude Code first, then run Hearth without the local-provider environment
 variable.
 
-### Managed Workshop
+### Workshop
 
-1. Select a disposable repository in Study and choose **Work here**.
-2. In Workshop, keep **Maker session** selected.
-3. Ask Maker to inspect the repository and make a small, testable change.
-4. Observe the plan, tool activity, diff, mode, effort, permissions, and token state in the main
-   workstream while Maker keeps the right-hand conversation brief.
-5. Open the context meter. Compare Claude's reported session use with Hearth's per-turn local
-   manifest, then inspect which recent user directions were sent versus only preserved locally.
-6. While Maker is still working, type a replacement direction and send it. The active turn should
-   become **Interrupted** and the new direction should continue in the same project session.
+1. Select a disposable repository in Study and choose **Work in _project_**.
+2. Start or resume Claude Code.
+3. Work in the main terminal exactly as you would in Windows Terminal. Claude's TUI owns the visible
+   plan, tool activity, diffs, permissions, modes, effort, and token counters.
+4. Use Shift+Tab to cycle Claude's permission mode and confirm that focus does not traverse Hearth's
+   surrounding controls.
+5. Talk to Maker through Claude Code in the terminal. The right rail supplies Maker's presence and
+   project-scoped notebook while the terminal remains the one visible conversation and workstream.
 
 ### Independent review
 
@@ -80,7 +79,7 @@ variable.
 | Sandboxed renderer and narrow preload | `src/main/main.ts`, `src/main/preload.ts` | native-window and continuity E2E scenarios |
 | Project path containment and bounded edits | `src/core/projects.ts` | `tests/unit/projects.test.ts`, project-review E2E scenarios |
 | Real persistent ConPTY | `src/core/terminal.ts` | terminal-state unit tests and three terminal E2E scenarios |
-| Project-scoped Claude ACP continuity | `src/core/claude-acp-runtime.ts` | `tests/unit/managed-maker.test.ts`, packaged smoke |
+| Native project-scoped Claude continuity | `src/core/terminal.ts`, `src/renderer/src/WorkshopRoom.tsx` | terminal-state tests, Claude-mode smoke, terminal Electron scenarios |
 | Activity-aware turn health and failure fate | `src/core/claude-acp-runtime.ts` | managed-maker unit tests and packaged health drill |
 | Truthful per-turn context manifest | `src/core/agent-provider.ts`, `src/core/store.ts` | agent-provider/store unit tests and Workshop Electron scenario |
 | Safe active-turn interruption | `src/core/claude-acp-runtime.ts`, `src/core/core.ts` | deterministic interruption unit test and optional real-provider packaged smoke |

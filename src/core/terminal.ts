@@ -103,6 +103,7 @@ export class TerminalManager {
   private readonly getProjectRoot: () => string;
   private readonly emit: (event: TerminalEvent) => void;
   private process: pty.IPty | null = null;
+  private readonly intentionalStops = new Set<string>();
   private session: TerminalSession | null;
   private scrollback = "";
   private sequence = 0;
@@ -124,7 +125,8 @@ export class TerminalManager {
     this.getProjectRoot = getProjectRoot;
     this.emit = emit;
     this.capabilities = probeClaude(findExecutable("claude.exe") ?? findExecutable("claude"));
-    this.session = store.getLatestTerminalSession();
+    store.stopOrphanedTerminalSessions();
+    this.session = store.getLatestTerminalSession(this.getProjectRoot());
     this.observation = {
       state: "quiet",
       summary: "No Workshop process is running.",
@@ -132,24 +134,6 @@ export class TerminalManager {
       updatedAt: now()
     };
 
-    if (
-      this.session &&
-      ["starting", "running", "waiting"].includes(this.session.lifecycle)
-    ) {
-      this.session = {
-        ...this.session,
-        lifecycle: "stopped",
-        pid: null,
-        exitedAt: now(),
-        exitCode: null,
-        claudeSessionId:
-          this.session.kind === "claude" && !this.session.claudeResumable
-            ? null
-            : this.session.claudeSessionId,
-        lastActivityAt: now()
-      };
-      this.store.saveTerminalSession(this.session);
-    }
   }
 
   snapshot(): TerminalSnapshot {
@@ -175,10 +159,37 @@ export class TerminalManager {
     return sameTerminalRoot(this.session?.cwd, rootPath);
   }
 
+  selectProject(rootPath: string): TerminalSnapshot {
+    if (this.isLive()) {
+      return this.snapshot();
+    }
+    this.session = this.store.getLatestTerminalSession(rootPath);
+    this.scrollback = "";
+    this.truncated = false;
+    this.claudeInputBuffer = "";
+    this.resumeProbe = "";
+    this.observationProbe = "";
+    this.executionResultProbe = "";
+    this.trackedProposalId = null;
+    this.observation = {
+      state: "quiet",
+      summary:
+        this.session?.kind === "claude" &&
+        this.session.claudeSessionId &&
+        this.session.claudeResumable
+          ? "This project has a Claude Code session ready to resume."
+          : "No Workshop process is running for this project.",
+      requiresInput: false,
+      updatedAt: now()
+    };
+    this.emitState();
+    this.setObservation(this.observation);
+    return this.snapshot();
+  }
+
   makerTerminalView(rootPath?: string): string | null {
     if (
       !this.isLive() ||
-      this.session?.owner !== "maker" ||
       (rootPath ? !this.belongsToProject(rootPath) : false)
     ) {
       return null;
@@ -201,13 +212,18 @@ export class TerminalManager {
     if (this.isLive()) {
       throw new Error("A Workshop session is already running.");
     }
+    const selectedRoot = this.getProjectRoot();
+    if (!this.belongsToProject(selectedRoot)) {
+      this.selectProject(selectedRoot);
+    }
     if (
       !this.session?.claudeSessionId ||
       !this.session.claudeResumable ||
       !this.capabilities.claudeAvailable ||
       !this.capabilities.supportsResume
     ) {
-      throw new Error("There is no resumable Claude Code session.");
+      const projectName = selectedRoot.split(/[\\/]/).filter(Boolean).at(-1) ?? "this project";
+      throw new Error(`There is no resumable Claude Code session for ${projectName}.`);
     }
     return this.spawn("claude", owner, this.session);
   }
@@ -225,9 +241,6 @@ export class TerminalManager {
 
   instruction(sessionId: string, proposalId: string, text: string): void {
     const live = this.requireLive(sessionId);
-    if (live.owner !== "maker") {
-      throw new Error("Give Maker control before passing an instruction.");
-    }
     if (live.kind !== "claude") {
       throw new Error("Maker instructions require a Claude Code session.");
     }
@@ -292,6 +305,7 @@ export class TerminalManager {
     if (!this.isLive()) {
       return session;
     }
+    this.intentionalStops.add(session.id);
     this.process?.kill();
     this.process = null;
     this.session = {
@@ -316,6 +330,7 @@ export class TerminalManager {
       this.persistTimer = null;
     }
     if (this.session && this.isLive()) {
+      this.intentionalStops.add(this.session.id);
       this.process?.kill();
       this.process = null;
       this.session = {
@@ -492,16 +507,17 @@ export class TerminalManager {
         this.appendOutput(data);
       });
       this.process.onExit(({ exitCode }) => {
+        const intentionallyStopped = this.intentionalStops.delete(activeSessionId);
         if (this.session?.id !== activeSessionId) {
           return;
         }
         this.process = null;
         this.session = {
           ...this.session,
-          lifecycle: exitCode === 0 ? "stopped" : "failed",
+          lifecycle: intentionallyStopped || exitCode === 0 ? "stopped" : "failed",
           pid: null,
           exitedAt: now(),
-          exitCode,
+          exitCode: intentionallyStopped ? null : exitCode,
           claudeSessionId:
             this.session.kind === "claude" && !this.session.claudeResumable
               ? null
@@ -510,9 +526,9 @@ export class TerminalManager {
         };
         this.persistNow();
         this.setObservation({
-          state: exitCode === 0 ? "quiet" : "failed",
+          state: intentionallyStopped || exitCode === 0 ? "quiet" : "failed",
           summary:
-            exitCode === 0
+            intentionallyStopped || exitCode === 0
               ? "The Workshop process stopped."
               : `The Workshop process exited with code ${exitCode}.`,
           requiresInput: false,
@@ -561,6 +577,7 @@ export class TerminalManager {
     if (sessionName && this.capabilities.supportsNamedSessions) {
       args.push("--name", sessionName);
     }
+    args.push("--append-system-prompt", HEARTH_MAKER_SYSTEM_PROMPT);
     return args;
   }
 
@@ -748,3 +765,10 @@ export class TerminalManager {
     }
   }
 }
+const HEARTH_MAKER_SYSTEM_PROMPT = [
+  "You are Maker, the user's technical partner inside Hearth.",
+  "The Claude Code terminal and Hearth's Maker portrait are two views of this same conversation, not separate agents.",
+  "Be highly capable but speak naturally: concise, casual, direct, and willing to disagree without sounding like a report.",
+  "Use ordinary technical conversation unless detail is genuinely useful. Keep the user's work, tools, diffs, permissions, and validation fully visible in Claude Code.",
+  "Do not explain this identity layering unless the user asks about it."
+].join(" ");

@@ -1,6 +1,6 @@
 # Hearth roadmap
 
-This roadmap starts from the real Hearth 0.56.0 implementation described in
+This roadmap starts from the real Hearth 0.59.6 implementation described in
 [current-status.md](current-status.md). Historical milestone documents remain evidence of completed
 work; they are not a backlog.
 
@@ -158,7 +158,7 @@ prompts or permission policy.
 
 ## Phase 4.5 — furnish the house
 
-The foundation and room passes shipped in 0.53.0 through 0.56.0. They establish a coherent visual
+The foundation and room passes shipped in 0.53.0 through 0.58.0. They establish a coherent visual
 language and furnish Home, Study, Workshop, Library, Studio, Living Room, and Archive without
 moving, renaming, or weakening any workflow.
 
@@ -190,13 +190,34 @@ moving, renaming, or weakening any workflow.
   and a clearly bounded permanent-removal confirmation.
 - Proved both rooms remain contained at compact desktop size after catching decoration-induced
   overflow during the pass.
+- Reinterpreted Living Room as an environmental interface rather than a material skin: a warm
+  arrival wall, central upholstered gathering surface, and inhabited resident nook establish the
+  visual standard future room refinements should meet.
 
-### Remaining furnishing passes
+### Whole-house environmental pass delivered
 
-1. Complete the Companion's final expressive visual identity, then tune resident expression and
-   presence across their established surfaces.
-2. Refresh public screenshots only after every room passes full-size, 1080×720, 1040×700, scaling,
-   wrapping, focus, copy/paste, and reduced-motion review.
+- Applied the Living Room environmental standard selectively to Home, Study, Workshop, Library,
+  Studio, and Archive with distinct lighting, architecture, and working surfaces.
+- Kept the metaphor inside responsive interface composition: no spatial navigation, decorative
+  controls, or loss of working density was introduced.
+- Balanced the persistent toolbar across the house and softened Living Room's final hard background
+  seam without flattening the rooms into one theme.
+- Re-ran real Library, Study, Studio, Archive, Living Room, and Workshop workflows at wide and
+  compact desktop sizes; terminal focus, resident presence, navigation, and containment remain
+  intact.
+
+### Completion delivered in 0.58.0
+
+- Replaced Companion's code-native placeholder with one coherent charcoal, walnut, brass, and amber
+  resident across idle, listening, thinking, and reply states.
+- Kept the full-body resident free-standing on Home while using a face-forward, softly furnished
+  portrait crop beside the rest of the household.
+- Re-ran all 15 Electron workflows, including 1440×900, 1080×720, 1040×700, narrow mobile,
+  terminal persistence, resident handoffs, copy/paste, links, wrapping, and reduced motion.
+- Rebuilt Companion as a v2 frame atlas with sixteen gaze directions, stable click-to-chat
+  presence, tread-based directional travel, and deterministic half-turn routing.
+- Replaced the public Workshop, Living Room, Library, Studio, and mobile screenshots with the
+  current furnished product.
 
 **Exit:** Hearth feels inhabited and visually coherent during daily use, while every room remains a
 working surface rather than a literal space the user must navigate.
@@ -242,3 +263,13 @@ Every phase carries the same non-feature work:
 - zero leaked personal paths, credentials, terminal scrollback, or project source in fixtures,
   screenshots, notifications, or persisted conversation; and
 - a milestone or changelog entry whenever shipped behavior changes.
+
+Before a public installer release, this lane also requires:
+
+- Windows code signing and a documented certificate/release process;
+- a deliberate updater and rollback design rather than an implicit background updater;
+- pagination or explicit history access for Studio and Archive collections that can outgrow their
+  current bounded room views;
+- repeatable idle and active memory measurements, with budgets for the Electron shell, ConPTY, and
+  provider child processes; and
+- generated art intermediates and Python caches kept outside the public source package.

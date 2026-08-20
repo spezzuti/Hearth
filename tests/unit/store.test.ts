@@ -18,6 +18,74 @@ afterEach(async () => {
 });
 
 describe("HearthStore continuity contract", () => {
+  it("keeps the newest bounded conversation window in chronological order", async () => {
+    const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "hearth-latest-history-"));
+    cleanup.push(dataDirectory);
+    const store = await HearthStore.open(dataDirectory, "C:\\Projects\\Hearth");
+
+    const room = store.createLivingRoomDiscussion(
+      "conversation",
+      ["companion"],
+      false,
+      { id: "workspace-hearth", name: "Hearth" }
+    );
+    const threadId = room.threads[0]!.id;
+    const idea = store.saveCapture("A history retention idea", undefined, "idea").capture;
+    store.updateCapture(idea.id, { ideaState: "pursuing" });
+
+    const database = new DatabaseSync(store.databasePath);
+    const insertAgent = database.prepare(`
+      INSERT INTO messages(id, project_id, agent, role, text, created_at)
+      VALUES (?, 'project-hearth', 'companion', ?, ?, ?)
+    `);
+    const insertRoom = database.prepare(`
+      INSERT INTO living_room_messages(id, thread_id, role, agent, text, round, created_at)
+      VALUES (?, ?, 'system', NULL, ?, ?, ?)
+    `);
+    const insertIdea = database.prepare(`
+      INSERT INTO idea_messages(id, capture_id, role, text, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    database.exec("BEGIN");
+    for (let index = 0; index < 55; index += 1) {
+      const createdAt = new Date(Date.UTC(2099, 7, 18, 12, index)).toISOString();
+      insertAgent.run(`agent-user-id-${index}`, "user", `agent-user-${index}`, createdAt);
+      insertAgent.run(`agent-reply-id-${index}`, "assistant", `agent-reply-${index}`, createdAt);
+    }
+    for (let index = 0; index < 205; index += 1) {
+      insertRoom.run(
+        `room-id-${index}`,
+        threadId,
+        `room-${index}`,
+        index,
+        new Date(Date.UTC(2099, 7, 19, 12, index)).toISOString()
+      );
+    }
+    for (let index = 0; index < 105; index += 1) {
+      const createdAt = new Date(Date.UTC(2099, 7, 20, 12, index)).toISOString();
+      insertIdea.run(`idea-user-id-${index}`, idea.id, "user", `idea-user-${index}`, createdAt);
+      insertIdea.run(`idea-reply-id-${index}`, idea.id, "assistant", `idea-reply-${index}`, createdAt);
+    }
+    database.exec("COMMIT");
+    database.close();
+
+    const agentMessages = store.getAgentConversation("companion");
+    expect(agentMessages).toHaveLength(100);
+    expect(agentMessages[0]?.text).toBe("agent-user-5");
+    expect(agentMessages.at(-1)?.text).toBe("agent-reply-54");
+
+    const roomMessages = store.getLivingRoom("workspace-hearth").threads[0]!.messages;
+    expect(roomMessages).toHaveLength(200);
+    expect(roomMessages[0]?.text).toBe("room-5");
+    expect(roomMessages.at(-1)?.text).toBe("room-204");
+
+    const ideaMessages = store.getIdeaConversation(idea.id);
+    expect(ideaMessages).toHaveLength(200);
+    expect(ideaMessages[0]?.text).toBe("idea-user-5");
+    expect(ideaMessages.at(-1)?.text).toBe("idea-reply-104");
+    store.close();
+  });
+
   it("persists shared Living Room discussions without leaking them across projects", async () => {
     const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "hearth-living-room-"));
     cleanup.push(dataDirectory);
@@ -926,6 +994,47 @@ describe("HearthStore continuity contract", () => {
     expect(store.getArchive().items.some((item) => item.id === unsafeEditId)).toBe(
       true
     );
+
+    const rollbackEditId = "88b9413c-acde-4d3c-a42a-82a8de8b105e";
+    const rollbackBackupPath = path.join(
+      store.backupsPath,
+      "project-edits",
+      `${rollbackEditId}.original`
+    );
+    await writeFile(rollbackBackupPath, "must be restored if deletion fails");
+    store.recordProjectEdit({
+      id: rollbackEditId,
+      projectId: "workspace-hearth",
+      projectName: "Hearth",
+      rootPath: "C:\\Projects\\Hearth",
+      path: "src/rollback.ts",
+      originalHash: "original",
+      appliedHash: "applied",
+      backupPath: rollbackBackupPath,
+      additions: 1,
+      deletions: 0,
+      appliedAt: "2026-07-29T17:32:00.000Z",
+      restoredAt: null
+    });
+    const archiveDatabase = new DatabaseSync(path.join(dataDirectory, "hearth.sqlite"));
+    archiveDatabase.exec(`
+      CREATE TRIGGER reject_project_edit_delete
+      BEFORE DELETE ON project_edits
+      WHEN OLD.id = '${rollbackEditId}'
+      BEGIN
+        SELECT RAISE(ABORT, 'simulated delete failure');
+      END;
+    `);
+    expect(() => store.removeArchiveItem(rollbackEditId, "edit")).toThrow(
+      "simulated delete failure"
+    );
+    await expect(access(rollbackBackupPath)).resolves.toBeUndefined();
+    expect(store.getArchive().items.some((item) => item.id === rollbackEditId)).toBe(
+      true
+    );
+    archiveDatabase.exec("DROP TRIGGER reject_project_edit_delete");
+    archiveDatabase.close();
+
     store.removeArchiveItem(discarded.id, "handoff");
     store.removeArchiveItem(removableReturnPack.id, "return-pack");
     expect(store.getArchive().items.some((item) => item.id === discarded.id)).toBe(
@@ -1403,15 +1512,141 @@ describe("HearthStore continuity contract", () => {
     };
     store.saveTerminalSession(session);
     expect(store.getLatestTerminalSession()).toEqual(session);
+    const otherProjectSession: TerminalSession = {
+      ...session,
+      id: "732019a8-5875-4ac0-bf15-6836193cdd18",
+      cwd: "C:\\Projects\\AOLRevive",
+      lifecycle: "stopped",
+      pid: null,
+      lastActivityAt: "2026-07-28T13:01:00.000Z",
+      exitedAt: "2026-07-28T13:01:00.000Z",
+      claudeSessionId: "88e51a8c-4abe-46b0-a2a5-87dfd59d31a9",
+      claudeName: "Hearth Maker · AOLRevive"
+    };
+    store.saveTerminalSession(otherProjectSession);
+    expect(store.getLatestTerminalSession()).toEqual(otherProjectSession);
+    expect(store.getLatestTerminalSession("C:\\Projects\\Hearth")).toEqual(session);
+    expect(store.getLatestTerminalSession("c:\\projects\\aolrevive")).toEqual(
+      otherProjectSession
+    );
     store.close();
 
     const reopened = await HearthStore.open(dataDirectory, "C:\\Projects\\Hearth");
-    expect(reopened.getLatestTerminalSession()).toEqual(session);
+    expect(reopened.getLatestTerminalSession()).toEqual(otherProjectSession);
+    expect(reopened.getLatestTerminalSession("C:\\Projects\\Hearth")).toEqual(session);
     const databaseBytes = await import("node:fs/promises").then((fs) =>
       fs.readFile(reopened.databasePath)
     );
     expect(databaseBytes.toString("utf8")).not.toContain("secret terminal output");
     reopened.close();
+  });
+
+  it("bounds superseded terminal session metadata per project folder", async () => {
+    const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "hearth-terminal-retention-"));
+    cleanup.push(dataDirectory);
+    const store = await HearthStore.open(dataDirectory, "C:\\Projects\\Hearth");
+    const rootPath = "C:\\Projects\\Hearth";
+    for (let index = 0; index < 15; index += 1) {
+      const timestamp = new Date(Date.UTC(2026, 7, 18, 12, index)).toISOString();
+      store.saveTerminalSession({
+        id: `terminal-retention-${index}`,
+        projectId: "project-hearth",
+        cwd: rootPath,
+        pid: null,
+        kind: "claude",
+        owner: "user",
+        lifecycle: "stopped",
+        startedAt: timestamp,
+        lastActivityAt: timestamp,
+        exitedAt: timestamp,
+        exitCode: 0,
+        claudeSessionId: `claude-retention-${index}`,
+        claudeName: `Retention ${index}`,
+        claudeResumable: true,
+        cols: 120,
+        rows: 32
+      });
+    }
+
+    const database = new DatabaseSync(store.databasePath);
+    const count = database.prepare(`
+      SELECT COUNT(*) AS count FROM terminal_sessions
+      WHERE cwd = ? COLLATE NOCASE
+    `).get(rootPath) as { count: number };
+    database.close();
+    expect(count.count).toBe(12);
+    expect(store.getLatestTerminalSession(rootPath)?.id).toBe("terminal-retention-14");
+    store.close();
+  });
+
+  it("parks stale live terminal records across every project after an unclean restart", async () => {
+    const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "hearth-terminal-orphans-"));
+    cleanup.push(dataDirectory);
+    const store = await HearthStore.open(dataDirectory, "C:\\Projects\\Hearth");
+    const base: TerminalSession = {
+      id: "a85251de-a7bc-427c-970f-4214c45cbb28",
+      projectId: "project-hearth",
+      cwd: "C:\\Projects\\Hearth",
+      pid: 1111,
+      kind: "claude",
+      owner: "user",
+      lifecycle: "running",
+      startedAt: "2026-08-18T12:00:00.000Z",
+      lastActivityAt: "2026-08-18T12:01:00.000Z",
+      exitedAt: null,
+      exitCode: null,
+      claudeSessionId: "ac4da0d1-91ec-49a8-86fa-a880c6a0a7e9",
+      claudeName: "Hearth Maker · Hearth",
+      claudeResumable: true,
+      cols: 120,
+      rows: 32
+    };
+    store.saveTerminalSession(base);
+    store.saveTerminalSession({
+      ...base,
+      id: "7e769fdd-5506-4f79-828e-2018af75360c",
+      cwd: "C:\\Projects\\AOLRevive",
+      pid: 2222,
+      lifecycle: "waiting",
+      claudeSessionId: "1979adb9-0b07-4c24-8305-6067c4e19650",
+      claudeName: "Hearth Maker · AOLRevive"
+    });
+
+    expect(store.stopOrphanedTerminalSessions("2026-08-18T13:00:00.000Z")).toBe(2);
+    expect(store.getLatestTerminalSession("C:\\Projects\\Hearth")).toMatchObject({
+      lifecycle: "stopped",
+      pid: null,
+      claudeResumable: true,
+      claudeSessionId: base.claudeSessionId,
+      lastActivityAt: base.lastActivityAt
+    });
+    expect(store.getLatestTerminalSession("C:\\Projects\\AOLRevive")).toMatchObject({
+      lifecycle: "stopped",
+      pid: null,
+      claudeResumable: true
+    });
+    store.close();
+  });
+
+  it("does not make routine bootstraps look like a new project selection", async () => {
+    const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "hearth-selection-clock-"));
+    cleanup.push(dataDirectory);
+    const store = await HearthStore.open(dataDirectory, "C:\\Projects\\Hearth");
+    store.saveWorkspaceSelection("C:\\Projects\\AOLRevive");
+    const database = new DatabaseSync(store.databasePath);
+    database.prepare(`
+      UPDATE workspace_preferences
+      SET updated_at = ?
+      WHERE key = 'selected-project-root'
+    `).run("2026-08-18T12:00:00.000Z");
+    database.close();
+
+    store.saveWorkspaceSelection("c:\\projects\\aolrevive");
+    expect(store.getWorkspaceSelectionRecord()).toEqual({
+      rootPath: "C:\\Projects\\AOLRevive",
+      updatedAt: "2026-08-18T12:00:00.000Z"
+    });
+    store.close();
   });
 
   it("continues the newest Maker conversation for the selected project", async () => {

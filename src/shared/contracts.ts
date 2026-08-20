@@ -497,6 +497,13 @@ export const coreRequestSchema = z.discriminatedUnion("method", [
   }),
   z.object({
     id: z.string().min(1),
+    method: z.literal("activateWorkspaceProject"),
+    payload: z.object({
+      projectId: z.string().min(1).max(120)
+    })
+  }),
+  z.object({
+    id: z.string().min(1),
     method: z.literal("getWorkspaceProject"),
     payload: z.object({
       projectId: z.string().min(1).max(120)
@@ -1658,6 +1665,12 @@ export interface TerminalSnapshot {
   observation: TerminalObservation;
 }
 
+export interface WorkspaceActivation {
+  project: WorkspaceProjectSummary;
+  terminal: TerminalSnapshot;
+  parkedProjectRoot: string | null;
+}
+
 export interface TerminalObservation {
   state: TerminalObservationState;
   summary: string;
@@ -1818,6 +1831,7 @@ export interface HearthApi {
   createBackup(reason: string): Promise<{ path: string; createdAt: string }>;
   listWorkspaceProjects(refresh?: boolean): Promise<WorkspaceCatalog>;
   selectWorkspaceProject(projectId: string): Promise<WorkspaceProjectSummary>;
+  activateWorkspaceProject(projectId: string): Promise<WorkspaceActivation>;
   getWorkspaceProject(projectId: string): Promise<WorkspaceProjectDetail>;
   listProjectDirectory(projectId: string, path: string): Promise<ProjectDirectory>;
   readProjectFile(projectId: string, path: string): Promise<ProjectFilePreview>;
@@ -1839,6 +1853,7 @@ export interface HearthApi {
   readProjectDiff(projectId: string, path?: string): Promise<ProjectDiff>;
   attachTerminal(): Promise<TerminalSnapshot>;
   detachTerminal(): Promise<{ detached: true }>;
+  setTerminalKeyboardFocus(sessionId: string | null): Promise<void>;
   startTerminal(kind: TerminalKind, owner: TerminalOwner): Promise<TerminalSnapshot>;
   resumeTerminal(owner: TerminalOwner): Promise<TerminalSnapshot>;
   terminalInput(sessionId: string, data: string): Promise<{ accepted: true }>;

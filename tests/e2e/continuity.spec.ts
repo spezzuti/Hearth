@@ -974,19 +974,90 @@ test.describe.serial("continuity vertical slice", () => {
     });
     const companionCharacter = companionButton.locator(".companion-character");
     await expect(companionCharacter).toHaveAttribute("data-mood", "idle");
-    await expect(companionCharacter.locator(".companion-eyes > i")).toHaveCount(2);
-    await expect(companionCharacter.locator(".companion-mouth")).toHaveCount(1);
+    await expect(companionCharacter).toHaveAttribute("data-animation", "frames");
+    await expect(companionCharacter).toHaveAttribute("data-frames-ready", "true");
+    await expect(companionCharacter.locator(".companion-sprite-frame")).toHaveCount(1);
+    await expect(companionCharacter.locator(".companion-rig, .companion-rig-eye"))
+      .toHaveCount(0);
+    await expect(companionButton).toHaveCSS("filter", "none");
+    await expect(running.page.locator(".app-shell[data-room='home'] .room-heading"))
+      .toHaveCSS("backdrop-filter", "none");
+    await expect(running.page.locator(".ambient-orb"))
+      .toHaveCSS("animation-name", "none");
+    const companionBounds = await companionButton.boundingBox();
+    expect(companionBounds).not.toBeNull();
+    const originalBounds = await companionCharacter.boundingBox();
+    expect(originalBounds).not.toBeNull();
+    await running.page.mouse.move(
+      companionBounds!.x - 170,
+      companionBounds!.y + companionBounds!.height / 2,
+      { steps: 4 }
+    );
+    await expect(running.page.locator(".companion"))
+      .toHaveAttribute("data-proximity", "near");
+    await expect(running.page.locator(".companion"))
+      .toHaveAttribute("data-pointer-tracking", "true");
+    await expect(companionCharacter).toHaveAttribute("data-state", "gaze");
+    await expect(companionCharacter).toHaveAttribute("data-row", "10");
+    await running.page.screenshot({
+      path: path.join(screenshotDirectory, "companion-character-near.png"),
+      fullPage: true
+    });
+    const trackedBounds = await companionCharacter.boundingBox();
+    expect(trackedBounds).toEqual(originalBounds);
+    await running.page.screenshot({
+      path: path.join(screenshotDirectory, "companion-character-direct.png"),
+      fullPage: true
+    });
+    await running.page.mouse.move(450, Math.max(30, companionBounds!.y - 130), { steps: 4 });
+    await expect(companionCharacter).toHaveAttribute("data-mood", "track-high");
+    await expect(companionCharacter).toHaveAttribute("data-animation", "frames");
+    await running.page.mouse.move(
+      Math.max(40, companionBounds!.x - 280),
+      companionBounds!.y + companionBounds!.height / 2,
+      { steps: 4 }
+    );
+    await expect(companionCharacter).toHaveAttribute("data-mood", "track-level");
+    await expect(companionCharacter).toHaveAttribute("data-state", "gaze");
+    await running.page.mouse.move(
+      companionBounds!.x + companionBounds!.width / 2,
+      companionBounds!.y + companionBounds!.height / 2,
+      { steps: 4 }
+    );
+    await expect(companionCharacter).toHaveAttribute("data-mood", "idle");
+    await expect(companionCharacter).toHaveAttribute("data-gesture", "jump");
+    await expect(companionCharacter).toHaveAttribute("data-row", "4");
+    await running.page.waitForTimeout(470);
+    await expect(companionCharacter).toHaveAttribute("data-frame", "4");
+    await running.page.waitForTimeout(800);
+    await expect(companionCharacter).toHaveAttribute("data-gesture", "none");
+    await expect(companionCharacter).toHaveAttribute("data-state", "gaze");
     await running.page.screenshot({
       path: path.join(screenshotDirectory, "companion-character-idle.png"),
       fullPage: true
     });
     await companionButton.click();
+    await expect(running.page.locator(".companion"))
+      .toHaveAttribute("data-acknowledging", "true");
+    await expect(companionCharacter).toHaveAttribute("data-gesture", "wave");
+    await expect(companionCharacter).toHaveAttribute("data-row", "3");
+    await expect(companionCharacter.locator(".companion-sprite-frame")).toBeVisible();
     await expect(
       running.page.getByRole("heading", { name: "Companion", exact: true })
     ).toBeVisible();
     await expect(
       running.page.locator(".companion-button .companion-character")
     ).toHaveAttribute("data-mood", "listening");
+    await expect(
+      running.page.locator(".companion-button .companion-character")
+    ).toHaveAttribute("data-animation", "frames");
+    await expect(running.page.locator(".companion-button .companion-sprite-frame"))
+      .toBeVisible();
+    await expect(running.page.locator(".companion-button"))
+      .toHaveCSS("opacity", "1");
+    await expect(
+      running.page.locator(".companion-heading .companion-sprite-frame")
+    ).toBeVisible();
     await expect(
       running.page.locator(".companion-heading .companion-character")
     ).toHaveAttribute("data-mood", "listening");
@@ -1003,6 +1074,24 @@ test.describe.serial("continuity vertical slice", () => {
     );
     await companionComposer.press("Enter");
     await expect(running.page.getByText(/left off in Workshop/i)).toBeVisible();
+    await running.app.close();
+  });
+
+  test("keeps Companion calm when reduced motion is requested", async () => {
+    const running = await launch();
+    await running.page.emulateMedia({ reducedMotion: "reduce" });
+    const companionCharacter = running.page
+      .getByRole("button", { name: "Talk to Companion" })
+      .locator(".companion-character");
+    await expect(companionCharacter).toHaveAttribute("data-animation", "frames");
+    await expect(companionCharacter).toHaveCSS("animation-name", "none");
+    const firstFrame = await companionCharacter.getAttribute("data-frame");
+    await running.page.waitForTimeout(900);
+    await expect(companionCharacter).toHaveAttribute("data-frame", firstFrame!);
+    await running.page.getByRole("button", { name: "Talk to Companion" }).click();
+    await expect(
+      running.page.getByRole("heading", { name: "Companion", exact: true })
+    ).toBeVisible();
     await running.app.close();
   });
 
@@ -1743,14 +1832,13 @@ test.describe.serial("continuity vertical slice", () => {
         BrowserWindow.getAllWindows()[0]?.setSize(1440, 900);
       });
       await running.page.waitForTimeout(400);
-      await running.page.getByRole("button", { name: /Work here/ }).click();
+      await running.page.getByRole("button", { name: /Open Workshop|Return to Workshop|Work in Review Project/ }).click();
       await expect(
         running.page.getByRole("heading", { name: "Work with the process in view." })
       ).toBeVisible();
       const bootstrap = await running.page.evaluate(() => window.hearth.bootstrap());
       expect(bootstrap.workspace.selectedProject.rootPath).toBe(reviewProject);
 
-      await running.page.getByRole("button", { name: "Terminal", exact: true }).click();
       await running.page
         .getByRole("button", { name: /^Open .*PowerShell/ })
         .click();
@@ -1772,9 +1860,8 @@ test.describe.serial("continuity vertical slice", () => {
     }
   });
 
-  test("keeps Maker's visible chat with its project through Study and Work here", async () => {
+  test("opens Workshop on the real terminal with Maker beside the same work session", async () => {
     const running = await launch();
-    const reviewMarker = "REVIEW-PROJECT-MAKER-THREAD-ONLY";
     try {
       await running.page
         .getByLabel("Rooms")
@@ -1784,203 +1871,49 @@ test.describe.serial("continuity vertical slice", () => {
         .locator(".project-list")
         .getByRole("button", { name: /Review Project/ })
         .click();
-      await running.page.getByRole("button", { name: /Work here/ }).click();
-      await expect(running.page.getByLabel("Message Maker")).toHaveCount(1);
-      await expect(running.page.locator(".claude-composer")).toHaveCount(1);
-      await expect(running.page.locator(".workshop-maker textarea")).toHaveCount(0);
-      await running.page.getByLabel("Message Maker").fill(reviewMarker);
-      await running.page.getByRole("button", { name: "Send to Maker" }).click();
-      await expect(
-        running.page.locator(".claude-turn-prompt").getByText(reviewMarker, { exact: true })
-      ).toBeVisible();
-      const makerReply = await running.page.locator(".workshop-maker .maker-note:not(.maker-note--user) p").last().innerText();
-      await expect(running.page.locator(".claude-transcript").getByText(makerReply, { exact: true })).toHaveCount(0);
-      const workstreamDatabase = new DatabaseSync(path.join(dataDirectory, "hearth.sqlite"));
-      const workstreamUpdatedAt = new Date().toISOString();
-      workstreamDatabase.prepare(`
-        UPDATE managed_workshop_turns
-        SET activities_json = ?, plan_json = ?, thoughts = ?, session_state_json = ?, updated_at = ?
-        WHERE id = (SELECT id FROM managed_workshop_turns ORDER BY started_at DESC LIMIT 1)
-      `).run(
-        JSON.stringify([
-          { id: "read-flow", kind: "read", title: "Read protocol flow", status: "completed", locations: ["src/protocol/flow.ts"], toolName: "Read", updatedAt: workstreamUpdatedAt },
-          { id: "search-race", kind: "search", title: "Search race condition path", status: "completed", locations: ["src/protocol"], toolName: "Grep", output: "Found 2 results", updatedAt: workstreamUpdatedAt },
-          { id: "test-protocol", kind: "execute", title: "Run focused protocol tests", status: "completed", locations: [], toolName: "Bash", input: "npm test -- --grep protocol", output: "All 13 protocol tests passed", updatedAt: workstreamUpdatedAt },
-          { id: "edit-flow", kind: "edit", title: "Edit protocol transition", status: "completed", locations: ["src/protocol/flow.ts"], toolName: "Edit", diffs: [{ path: "src/protocol/flow.ts", oldText: "if (state.status === 'ready') {\n  state.emit('advance');\n  state.index += 1;\n}", newText: "if (state.status !== 'ready') {\n  state.index += 1;\n  queueMicrotask(() => this.emit('advance'));\n}" }], updatedAt: workstreamUpdatedAt },
-          { id: "agent-test", kind: "other", title: "Test Runner", status: "completed", locations: [], toolName: "Agent", subagent: true, updatedAt: workstreamUpdatedAt }
-        ]),
-        JSON.stringify([
-          { content: "Trace the protocol path", priority: "high", status: "completed" },
-          { content: "Prove the race with a focused test", priority: "high", status: "completed" }
-        ]),
-        "The transition mutates shared state before the queued event can observe it.",
-        JSON.stringify({ modeId: "plan", modeName: "Planning", availableModes: [{ id: "default", name: "Manual", description: null }, { id: "auto", name: "Auto", description: null }, { id: "plan", name: "Planning", description: null }], ultracodeRequested: false, contextUsed: 31_400, contextSize: 100_000, inputTokens: 28_000, outputTokens: 3_400, cachedReadTokens: 0, cachedWriteTokens: 0, effortId: "xhigh", effortName: "XHigh", availableEfforts: [{ id: "low", name: "Low", description: null }, { id: "medium", name: "Medium", description: null }, { id: "high", name: "High", description: null }, { id: "xhigh", name: "XHigh", description: null }] }),
-        workstreamUpdatedAt
+      await running.page.getByRole("button", { name: /Open Workshop|Return to Workshop|Work in Review Project/ }).click();
+
+      await expect(running.page.locator(".terminal-workbench")).toBeVisible();
+      await expect(running.page.locator(".claude-workbench")).toHaveCount(0);
+      await expect(running.page.getByLabel("Workshop surface")).toHaveCount(0);
+      await expect(running.page.getByLabel("Talk to Maker in Claude Code")).toHaveCount(0);
+      await expect(running.page.getByLabel("Message Maker")).toHaveCount(0);
+      await expect(running.page.locator(".maker-notebook")).toContainText("Current work");
+      await expect(running.page.getByRole("button", { name: "Talk in Claude Code" })).toBeVisible();
+      await expect(running.page.locator(".terminal-host, .terminal-welcome")).toBeVisible();
+    } finally {
+      await running.app.close();
+    }
+  });
+
+  test("keeps a live terminal attached to its project and switches explicitly", async () => {
+    const running = await launch();
+    try {
+      await running.page
+        .getByLabel("Rooms")
+        .getByRole("button", { name: /Workshop/ })
+        .click();
+      const projects = await running.page.evaluate(async () => {
+        const catalog = await window.hearth.listWorkspaceProjects();
+        const first = catalog.projects.find((project) => project.name === "Review Project");
+        const second = catalog.projects.find(
+          (project) => first && project.id !== first.id && project.signals.includes("git")
+        );
+        return first && second ? { first, second } : null;
+      });
+      expect(projects).not.toBeNull();
+      await running.page.evaluate(
+        (projectId) => window.hearth.selectWorkspaceProject(projectId),
+        projects!.first.id
       );
-      workstreamDatabase.close();
-
-      const reloadStateDatabase = new DatabaseSync(path.join(dataDirectory, "hearth.sqlite"));
-      reloadStateDatabase.prepare(`
-        UPDATE managed_workshop_turns
-        SET status = 'running', completed_at = NULL
-        WHERE id = (SELECT id FROM managed_workshop_turns ORDER BY started_at DESC LIMIT 1)
-      `).run();
-      reloadStateDatabase.close();
       await running.page.reload();
-      await expect(running.page.locator(".claude-turn.is-running")).toBeVisible();
-      await expect(running.page.locator(".claude-turn.is-running .claude-turn-status")).toContainText("thinking");
-
-      const completedStateDatabase = new DatabaseSync(path.join(dataDirectory, "hearth.sqlite"));
-      completedStateDatabase.prepare(`
-        UPDATE managed_workshop_turns
-        SET status = 'completed', completed_at = ?, updated_at = ?
-        WHERE id = (SELECT id FROM managed_workshop_turns ORDER BY started_at DESC LIMIT 1)
-      `).run(workstreamUpdatedAt, workstreamUpdatedAt);
-      completedStateDatabase.close();
-      await running.page.reload();
-      await expect(running.page.locator(".claude-session-bar")).toContainText("Planning");
-      await expect(running.page.locator(".claude-turn-status")).toContainText("31.4k tokens");
-      const editActivity = running.page.locator("details.claude-event").filter({ hasText: "Edit protocol transition" });
-      await expect(editActivity).not.toHaveAttribute("open", "");
-      await expect(running.page.locator(".managed-diff-line.is-added")).toHaveCount(0);
-      await editActivity.locator("summary").click();
-      await expect(running.page.locator(".managed-diff-line.is-added").first()).toBeVisible();
-      await expect(running.page.locator(".managed-diff-line.is-removed").first()).toBeVisible();
-      await expect(running.page.locator(".claude-agents")).toContainText("Test Runner");
-      await expect(running.page.getByRole("button", { name: "Manual terminal" })).toHaveCount(0);
-      await expect(running.page.locator(".claude-composer-context")).toHaveCount(0);
-      await expect(running.page.locator(".claude-context-meter")).toHaveCount(1);
-      await expect(running.page.locator(".claude-context-meter")).toContainText("Context window31.4k / 100k · 31%");
-      await running.page.locator(".claude-context-meter").click();
-      const contextInspector = running.page.getByRole("dialog", { name: "What Hearth can actually prove" });
-      await expect(contextInspector).toBeVisible();
-      const closeContextInspector = running.page.getByRole("button", { name: "Close context inspector" });
-      await expect(closeContextInspector).toBeFocused();
-      await expect(contextInspector).toContainText("Provider reported");
-      await expect(contextInspector).toContainText("31.4k / 100k");
-      await expect(contextInspector).toContainText("Hearth supplied this turn");
-      await expect(contextInspector).toContainText("Current direction");
-      await expect(contextInspector).toContainText("Characters, not token guesses");
-      await expect(contextInspector).toContainText("does not claim access to hidden provider prompts");
-      await running.page.keyboard.press("Escape");
-      await expect(contextInspector).toHaveCount(0);
-      await expect(running.page.locator(".claude-context-meter")).toBeFocused();
-      await expect(running.page.getByRole("button", { name: "Planning" })).toHaveAttribute("title", "Manual → Auto → Planning");
-      await expect(running.page.getByLabel("Effort level")).toHaveValue("xhigh");
-      await expect(running.page.getByLabel("Effort level").locator("option")).toHaveText(["Low", "Medium", "High", "XHigh"]);
-      const makerComposer = running.page.getByLabel("Message Maker");
-      const oneLineComposerHeight = await makerComposer.evaluate((element) => element.getBoundingClientRect().height);
-      await makerComposer.fill("One\nTwo\nThree\nFour");
-      await expect.poll(() => makerComposer.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(oneLineComposerHeight);
-      await makerComposer.fill("");
-      const workshopPolish = await running.page.evaluate(() => {
-        const workbench = document.querySelector<HTMLElement>(".claude-workbench")!;
-        const sessionBar = document.querySelector<HTMLElement>(".claude-session-bar")!;
-        const context = document.querySelector<HTMLElement>(".claude-context-meter")!;
-        const detail = document.querySelector<HTMLElement>(".claude-event-body section")!;
-        const composer = document.querySelector<HTMLElement>(".claude-composer")!;
-        const event = document.querySelector<HTMLElement>(".claude-event")!;
-        const controls = document.querySelector<HTMLElement>(".claude-composer-controls")!;
-        const stop = document.createElement("button");
-        stop.className = "managed-send-button is-stop";
-        stop.textContent = "Stop";
-        controls.append(stop);
-        const result = {
-          workbenchBackground: getComputedStyle(workbench).backgroundColor,
-          detailBackground: getComputedStyle(detail).backgroundColor,
-          composerBackground: getComputedStyle(composer).backgroundColor,
-          contextOffset: Math.abs(
-            context.getBoundingClientRect().left + context.getBoundingClientRect().width / 2 -
-              (sessionBar.getBoundingClientRect().left + sessionBar.getBoundingClientRect().width / 2)
-          ),
-          eventFontSize: Number.parseFloat(getComputedStyle(event).fontSize),
-          stopContained: stop.scrollWidth <= stop.clientWidth
-        };
-        stop.remove();
-        return result;
-      });
-      expect(workshopPolish.detailBackground).toBe(workshopPolish.workbenchBackground);
-      expect(workshopPolish.composerBackground).toBe(workshopPolish.workbenchBackground);
-      expect(workshopPolish.contextOffset).toBeLessThanOrEqual(2);
-      expect(workshopPolish.eventFontSize).toBeGreaterThanOrEqual(10);
-      expect(workshopPolish.stopContained).toBe(true);
-      await editActivity.locator("summary").click();
-      await running.page.screenshot({
-        path: path.join(screenshotDirectory, "managed-workshop-unified.png"),
-        fullPage: true
-      });
-      await running.app.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()[0]?.setSize(1100, 720);
-      });
-      await running.page.waitForTimeout(350);
-      const compactWorkshopBounds = await running.page.evaluate(() => {
-        const layout = document.querySelector<HTMLElement>(".workshop-layout");
-        const workbench = document.querySelector<HTMLElement>(".claude-workbench");
-        const maker = document.querySelector<HTMLElement>(".workshop-maker");
-        const composer = document.querySelector<HTMLElement>(".claude-composer");
-        const context = document.querySelector<HTMLElement>(".claude-context-meter");
-        const sessionMeta = document.querySelector<HTMLElement>(".claude-session-meta");
-        const contextBounds = context?.getBoundingClientRect();
-        const sessionMetaBounds = sessionMeta?.getBoundingClientRect();
-        return {
-          documentContained: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-          layoutContained: Boolean(layout && layout.scrollWidth <= layout.clientWidth + 1),
-          workbenchContained: Boolean(workbench && workbench.scrollWidth <= workbench.clientWidth + 1),
-          makerContained: Boolean(maker && maker.scrollWidth <= maker.clientWidth + 1),
-          composerContained: Boolean(composer && composer.scrollWidth <= composer.clientWidth + 1),
-          sessionControlsSeparated: Boolean(
-            contextBounds &&
-            sessionMetaBounds &&
-            contextBounds.right <= sessionMetaBounds.left + 1
-          )
-        };
-      });
-      expect(compactWorkshopBounds).toEqual({
-        documentContained: true,
-        layoutContained: true,
-        workbenchContained: true,
-        makerContained: true,
-        composerContained: true,
-        sessionControlsSeparated: true
-      });
-      await running.page.locator(".claude-context-meter").click();
-      await expect(contextInspector).toBeVisible();
-      const compactInspectorBounds = await contextInspector.evaluate((panel) => {
-        const workbench = panel.closest<HTMLElement>(".claude-workbench");
-        const workbenchBounds = workbench?.getBoundingClientRect();
-        const panelBounds = panel.getBoundingClientRect();
-        return {
-          horizontallyContained: Boolean(
-            workbenchBounds &&
-            panelBounds.left >= workbenchBounds.left - 1 &&
-            panelBounds.right <= workbenchBounds.right + 1
-          ),
-          verticallyContained: Boolean(
-            workbenchBounds &&
-            panelBounds.top >= workbenchBounds.top - 1 &&
-            panelBounds.bottom <= workbenchBounds.bottom + 1
-          ),
-          contentContained: panel.scrollWidth <= panel.clientWidth + 1
-        };
-      });
-      expect(compactInspectorBounds).toEqual({
-        horizontallyContained: true,
-        verticallyContained: true,
-        contentContained: true
-      });
-      await running.page.screenshot({
-        path: path.join(screenshotDirectory, "context-inspector-compact.png"),
-        fullPage: true
-      });
-      await running.page.keyboard.press("Escape");
-      await running.page.screenshot({
-        path: path.join(screenshotDirectory, "managed-workshop-unified-compact.png"),
-        fullPage: true
-      });
-      await running.app.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()[0]?.setSize(1440, 900);
-      });
-      await running.page.waitForTimeout(250);
+      await running.page.evaluate(() => window.hearth.startTerminal("powershell", "user"));
+      await expect
+        .poll(async () => {
+          const snapshot = await running.page.evaluate(() => window.hearth.attachTerminal());
+          return snapshot.session?.cwd.toLocaleLowerCase();
+        })
+        .toBe(projects!.first.rootPath.toLocaleLowerCase());
 
       await running.page
         .getByLabel("Rooms")
@@ -1988,18 +1921,33 @@ test.describe.serial("continuity vertical slice", () => {
         .click();
       await running.page
         .locator(".project-list")
-        .getByRole("button", { name: /PersonalOS/ })
+        .getByRole("button", { name: new RegExp(projects!.second.name) })
         .click();
-      await running.page.getByRole("button", { name: /Work here/ }).click();
+      const switchButton = running.page.getByRole("button", {
+        name: `Switch to ${projects!.second.name}`
+      });
+      await expect(switchButton).toBeVisible();
+      await switchButton.click();
       await expect(
         running.page.getByRole("heading", { name: "Work with the process in view." })
       ).toBeVisible();
-      await expect(running.page.getByText(reviewMarker, { exact: true })).toHaveCount(0);
-      let bootstrap = await running.page.evaluate(() => window.hearth.bootstrap());
-      expect(bootstrap.workspace.selectedProject.name).toBe("PersonalOS");
-      expect(
-        bootstrap.conversations.maker.some((message) => message.text === reviewMarker)
-      ).toBe(false);
+      await expect
+        .poll(async () => {
+          const snapshot = await running.page.evaluate(() => window.hearth.bootstrap());
+          return {
+            selected: snapshot.workspace.selectedProject.rootPath.toLocaleLowerCase(),
+            terminal: snapshot.terminal.session?.cwd.toLocaleLowerCase() ?? null,
+            liveProcesses: snapshot.runtime.liveProcesses
+          };
+        })
+        .toEqual({
+          selected: projects!.second.rootPath.toLocaleLowerCase(),
+          terminal: null,
+          liveProcesses: 0
+        });
+      await expect(
+        running.page.getByRole("heading", { name: "We’re looking at two different projects." })
+      ).toHaveCount(0);
 
       await running.page
         .getByLabel("Rooms")
@@ -2007,18 +1955,36 @@ test.describe.serial("continuity vertical slice", () => {
         .click();
       await running.page
         .locator(".project-list")
-        .getByRole("button", { name: /Review Project/ })
+        .getByRole("button", { name: new RegExp(projects!.first.name) })
         .click();
-      await running.page.getByRole("button", { name: /Work here/ }).click();
-      await expect(
-        running.page.locator(".claude-turn-prompt").getByText(reviewMarker, { exact: true })
-      ).toBeVisible();
-      bootstrap = await running.page.evaluate(() => window.hearth.bootstrap());
-      expect(bootstrap.workspace.selectedProject.name).toBe("Review Project");
-      expect(
-        bootstrap.conversations.maker.some((message) => message.text === reviewMarker)
-      ).toBe(true);
+      await running.page
+        .getByRole("button", { name: `Work in ${projects!.first.name}` })
+        .click();
+      await expect
+        .poll(async () => {
+          const snapshot = await running.page.evaluate(() => window.hearth.bootstrap());
+          return {
+            selected: snapshot.workspace.selectedProject.rootPath.toLocaleLowerCase(),
+            terminal: snapshot.terminal.session?.cwd.toLocaleLowerCase() ?? null,
+            lifecycle: snapshot.terminal.session?.lifecycle ?? null
+          };
+        })
+        .toEqual({
+          selected: projects!.first.rootPath.toLocaleLowerCase(),
+          terminal: projects!.first.rootPath.toLocaleLowerCase(),
+          lifecycle: "stopped"
+        });
     } finally {
+      const snapshot = await running.page.evaluate(() => window.hearth.attachTerminal());
+      if (
+        snapshot.session &&
+        ["starting", "running", "waiting"].includes(snapshot.session.lifecycle)
+      ) {
+        await running.page.evaluate(
+          (sessionId) => window.hearth.stopTerminal(sessionId),
+          snapshot.session.id
+        );
+      }
       await running.app.close();
     }
   });
@@ -2240,41 +2206,25 @@ test.describe.serial("continuity vertical slice", () => {
             );
         }, { timeout: 15_000 })
         .toBe(true);
-      const makerComposer = running.page.getByLabel("Message Maker");
-      await makerComposer.pressSequentially(
-        "jkljflkdjfkjklfjlkdsajflkdjflkdkfladlkfjlkajfjalkdfjlkdajfjdlkfjdsakfjkadjflkdajlkfjkdalfjkldafjkdajfkdajfkl".repeat(
-          5
-        ),
-        { delay: 1 }
-      );
-      const typingContainment = await makerComposer.evaluate((textarea) => {
-        const composer = textarea.closest<HTMLElement>(".maker-rail-composer");
-        const rail = textarea.closest<HTMLElement>(".workshop-maker");
+      const makerNotebook = running.page.locator(".maker-notebook");
+      const talkInClaude = running.page.getByRole("button", { name: "Talk in Claude Code" });
+      await expect(makerNotebook).toBeVisible();
+      await expect(running.page.locator(".maker-rail-composer")).toHaveCount(0);
+      if (terminalKind === "claude") {
+        await expect(talkInClaude).toBeEnabled();
+      } else {
+        await expect(talkInClaude).toBeDisabled();
+      }
+      const wideRailContainment = await makerNotebook.evaluate((notebook) => {
+        const rail = notebook.closest<HTMLElement>(".workshop-maker");
         return {
-          textareaScrollLeft: textarea.scrollLeft,
-          textareaContained: textarea.scrollWidth <= textarea.clientWidth + 1,
-          composerContained: Boolean(
-            composer && composer.scrollWidth <= composer.clientWidth + 1
-          ),
-          railContained: Boolean(rail && rail.scrollWidth <= rail.clientWidth + 1),
-          childrenContained: Boolean(
-            rail &&
-              [...rail.children].every((child) => {
-                const element = child as HTMLElement;
-                return (
-                  element.getBoundingClientRect().width <= rail.clientWidth + 1 &&
-                  element.scrollWidth <= element.clientWidth + 1
-                );
-              })
-          )
+          notebookContained: notebook.scrollWidth <= notebook.clientWidth + 1,
+          railContained: Boolean(rail && rail.scrollWidth <= rail.clientWidth + 1)
         };
       });
-      expect(typingContainment).toEqual({
-        textareaScrollLeft: 0,
-        textareaContained: true,
-        composerContained: true,
-        railContained: true,
-        childrenContained: true
+      expect(wideRailContainment).toEqual({
+        notebookContained: true,
+        railContained: true
       });
       await running.page.screenshot({
         path: path.join(screenshotDirectory, "maker-claude-wide.png"),
@@ -2283,15 +2233,8 @@ test.describe.serial("continuity vertical slice", () => {
       await running.app.evaluate(({ BrowserWindow }) => {
         BrowserWindow.getAllWindows()[0]?.setSize(1040, 700);
       });
-      await makerComposer.fill("");
-      await makerComposer.pressSequentially(
-        "jkljflkdjfkjklfjlkdsajflkdjflkdkfladlkfjlkajfjalkdfjlkdajfjdlkfjdsakfjkadjflkdajlkfjkdalfjkldafjkdajfkdajfkl".repeat(
-          5
-        ),
-        { delay: 1 }
-      );
-      const forcedRailScroll = await makerComposer.evaluate((textarea) => {
-        const rail = textarea.closest<HTMLElement>(".workshop-maker");
+      const forcedRailScroll = await makerNotebook.evaluate((notebook) => {
+        const rail = notebook.closest<HTMLElement>(".workshop-maker");
         if (!rail) return -1;
         rail.scrollLeft = 240;
         return rail.scrollLeft;
@@ -2301,28 +2244,21 @@ test.describe.serial("continuity vertical slice", () => {
         .poll(() =>
           running.page.evaluate(() => {
             const maker = document.querySelector<HTMLElement>(".workshop-maker");
-            const composer = document.querySelector<HTMLElement>(".maker-rail-composer");
+            const notebook = document.querySelector<HTMLElement>(".maker-notebook");
             const proposal = document.querySelector<HTMLElement>(".maker-proposal");
-            const textarea = document.querySelector<HTMLTextAreaElement>(
-              "#workshop-maker-message"
-            );
             const makerBounds = maker?.getBoundingClientRect();
-            const composerBounds = composer?.getBoundingClientRect();
+            const notebookBounds = notebook?.getBoundingClientRect();
             const proposalBounds = proposal?.getBoundingClientRect();
             return {
               documentContained:
                 document.documentElement.scrollWidth <=
                 document.documentElement.clientWidth + 1,
               documentScrollLeft: document.documentElement.scrollLeft,
-              textareaScrollLeft: textarea?.scrollLeft ?? -1,
-              textareaContained: Boolean(
-                textarea && textarea.scrollWidth <= textarea.clientWidth + 1
-              ),
-              composerContained: Boolean(
+              notebookContained: Boolean(
                 makerBounds &&
-                composerBounds &&
-                composerBounds.top >= makerBounds.top - 1 &&
-                composerBounds.bottom <= makerBounds.bottom + 1
+                notebookBounds &&
+                notebookBounds.top >= makerBounds.top - 1 &&
+                notebookBounds.bottom <= makerBounds.bottom + 1
               ),
               proposalContained: Boolean(
                 makerBounds &&
@@ -2336,9 +2272,7 @@ test.describe.serial("continuity vertical slice", () => {
         .toEqual({
           documentContained: true,
           documentScrollLeft: 0,
-          textareaScrollLeft: 0,
-          textareaContained: true,
-          composerContained: true,
+          notebookContained: true,
           proposalContained: true
         });
       await running.page.screenshot({
@@ -2349,24 +2283,18 @@ test.describe.serial("continuity vertical slice", () => {
         BrowserWindow.getAllWindows()[0]?.setSize(1440, 900);
       });
       await running.page.waitForTimeout(400);
-      await makerComposer.fill("What should Claude tackle first?");
-      await makerComposer.press("Shift+Enter");
-      await makerComposer.pressSequentially("Keep it bounded.");
-      await expect(makerComposer).toHaveValue(
-        "What should Claude tackle first?\nKeep it bounded."
+      const workshopMakerMessagesBefore = await running.page.evaluate(
+        async () => (await window.hearth.bootstrap()).conversations.maker.length
       );
-      await makerComposer.press("Enter");
-      await expect(makerComposer).toHaveValue("");
+      if (terminalKind === "claude") {
+        await talkInClaude.click();
+      }
       await expect
         .poll(async () => {
           const snapshot = await running.page.evaluate(() => window.hearth.bootstrap());
-          return snapshot.conversations.maker.some(
-            (item) =>
-              item.role === "user" &&
-              item.text === "What should Claude tackle first?\nKeep it bounded."
-          );
+          return snapshot.conversations.maker.length;
         })
-        .toBe(true);
+        .toBe(workshopMakerMessagesBefore);
       const activeProposal = await running.page.evaluate(
         async () => (await window.hearth.bootstrap()).makerProposal
       );
@@ -2512,7 +2440,8 @@ test.describe.serial("continuity vertical slice", () => {
           libraryId: library.capture.id,
           ideaId: idea.capture.id,
           editId: appliedEdit.record.id,
-          terminalId: terminalBefore.session?.id ?? null
+          terminalId: terminalBefore.session?.id ?? null,
+          reviewProjectId: reviewProject.id
         };
       });
 
@@ -2649,10 +2578,10 @@ test.describe.serial("continuity vertical slice", () => {
       ).toHaveCount(0);
 
       const restored = await running.page.evaluate(
-        async ({ libraryId, ideaId, editId }) => {
+        async ({ libraryId, ideaId, editId, reviewProjectId }) => {
           const data = await window.hearth.bootstrap();
           const helper = await window.hearth.readProjectFile(
-            data.workspace.selectedProject.id,
+            reviewProjectId,
             "src/helper.ts"
           );
           const archive = await window.hearth.getArchive();
@@ -2684,6 +2613,9 @@ test.describe.serial("continuity vertical slice", () => {
       await handoffRecord.click();
       await running.page
         .getByRole("button", { name: "Work in Workshop" })
+        .click();
+      await running.page
+        .getByRole("button", { name: "Make current & open Workshop" })
         .click();
       await expect(
         running.page.getByRole("heading", {
@@ -2801,22 +2733,16 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(
         running.page.getByRole("heading", { name: "Work with the process in view." })
       ).toBeVisible();
-      const providerLabel = await running.page.evaluate(async () =>
-        (await window.hearth.bootstrap()).terminal.capabilities.claudeAvailable
-          ? "Claude configured Opus"
-          : "Hearth local"
-      );
+      const providerLabel = "Claude Code";
       const makerProvider = running.page.locator(".maker-provider");
       await expect(makerProvider).toContainText(
         new RegExp(providerLabel.split(/\s+/).join("\\s*"))
       );
-      const providerState = providerLabel === "Hearth local" ? "local" : "online";
+      const providerState = "local";
       await expect(
         running.page.locator(".maker-status")
       ).toHaveAttribute("aria-label", `${providerLabel} · ${providerState}`);
-      await expect(running.page.locator(".maker-status")).toHaveClass(
-        providerState === "online" ? /maker-status--online/ : /^maker-status$/
-      );
+      await expect(running.page.locator(".maker-status")).toHaveClass(/^maker-status$/);
       for (const size of [
         { width: 1440, height: 900 },
         { width: 1080, height: 720 },
@@ -2893,7 +2819,6 @@ test.describe.serial("continuity vertical slice", () => {
         portraitContainment.headingBottom
       );
 
-      await running.page.getByRole("button", { name: "Terminal", exact: true }).click();
       await running.page
         .getByRole("button", { name: /^Open .*PowerShell/ })
         .click();
@@ -2902,9 +2827,7 @@ test.describe.serial("continuity vertical slice", () => {
       await expect(running.page.locator(".runtime-pill")).toHaveClass(
         /runtime-pill--live/
       );
-      await expect(running.page.locator(".session-card")).toHaveClass(
-        /is-active/
-      );
+      await expect(running.page.locator(".session-shelf")).toHaveCount(0);
       await expect
         .poll(async () => {
           const snapshot = await running.page.evaluate(() => window.hearth.attachTerminal());
@@ -2919,6 +2842,7 @@ test.describe.serial("continuity vertical slice", () => {
         .toBe("ready");
       const terminalInput = running.page.locator(".xterm-helper-textarea");
       await expect(terminalInput).toBeFocused();
+
       await expect(running.page.locator(".terminal-search")).toHaveCount(0);
       await running.page.keyboard.press("Control+Shift+F");
       const terminalSearch = running.page.getByLabel("Find");
@@ -3073,13 +2997,13 @@ test.describe.serial("continuity vertical slice", () => {
       }));
       expect(compactBounds.scrollWidth).toBeLessThanOrEqual(compactBounds.clientWidth + 1);
       expect(compactBounds.scrollHeight).toBeLessThanOrEqual(compactBounds.clientHeight + 1);
-      const compactComposer = running.page.locator(".maker-rail-composer");
-      await expect(compactComposer.getByRole("button", { name: "Talk" })).toBeVisible();
-      const compactComposerBounds = await compactComposer.boundingBox();
+      const compactNotebook = running.page.locator(".maker-notebook");
+      await expect(compactNotebook.getByRole("button", { name: "Talk in Claude Code" })).toBeVisible();
+      const compactNotebookBounds = await compactNotebook.boundingBox();
       const compactViewportHeight = await running.page.evaluate(() => window.innerHeight);
-      expect(compactComposerBounds).not.toBeNull();
+      expect(compactNotebookBounds).not.toBeNull();
       expect(
-        (compactComposerBounds?.y ?? 0) + (compactComposerBounds?.height ?? 0)
+        (compactNotebookBounds?.y ?? 0) + (compactNotebookBounds?.height ?? 0)
       ).toBeLessThanOrEqual(compactViewportHeight + 1);
       await running.page.screenshot({
         path: path.join(screenshotDirectory, "workshop-compact.png"),
@@ -3110,20 +3034,12 @@ test.describe.serial("continuity vertical slice", () => {
       expect(reattached.scrollback).toContain("HEARTH-WORKSHOP-READY");
 
       const roomDimensions = await running.page.locator(".terminal-footer").innerText();
-      const roomTerminalWidth = await terminal.evaluate((element) => element.clientWidth);
-      await running.page.getByRole("button", { name: "Hide sessions" }).click();
       await expect(running.page.locator(".session-shelf")).toHaveCount(0);
       await expect(running.page.locator(".workshop-maker")).toHaveCount(1);
-      await expect(running.page.getByRole("button", { name: "Show sessions" })).toBeVisible();
-      await expect
-        .poll(() => terminal.evaluate((element) => element.clientWidth))
-        .toBeGreaterThan(roomTerminalWidth);
       await running.page.screenshot({
-        path: path.join(screenshotDirectory, "workshop-sessions-collapsed.png"),
+        path: path.join(screenshotDirectory, "workshop-unified-terminal.png"),
         fullPage: true
       });
-      await running.page.getByRole("button", { name: "Show sessions" }).click();
-      await expect(running.page.locator(".session-shelf")).toBeVisible();
 
       await running.page.getByRole("button", { name: "Focus terminal" }).click();
       await expect(running.page.locator(".sidebar")).toHaveCount(0);
@@ -3138,25 +3054,7 @@ test.describe.serial("continuity vertical slice", () => {
       });
       await running.page.getByRole("button", { name: "Restore room" }).click();
 
-      await running.page.evaluate(
-        ({ sessionId }) => window.hearth.setTerminalOwner(sessionId, "maker"),
-        { sessionId: originalSnapshot.session!.id }
-      );
-      await expect(
-        running.page.getByText("I can see the terminal.")
-      ).toBeVisible();
-      await expect(
-        running.page.getByText("Maker can read the recent terminal")
-      ).toBeVisible();
-      await expect(
-        running.page.getByText(
-          "Instructions still use an explicit handoff. You can watch, copy, and search."
-        )
-      ).toBeVisible();
-      await running.page
-        .getByLabel("Terminal control")
-        .getByRole("button", { name: "You" })
-        .click();
+      await expect(running.page.getByLabel("Terminal control")).toHaveCount(0);
       await expect(terminalInput).toBeFocused();
 
       await running.page.screenshot({
@@ -3177,6 +3075,15 @@ test.describe.serial("continuity vertical slice", () => {
       await running.page.getByRole("button", { name: "Stop" }).click();
       await running.page.getByRole("button", { name: "Stop session" }).click();
       await expect(running.page.locator(".terminal-footer")).toContainText("PID stopped");
+      await expect
+        .poll(async () => {
+          const stopped = await running.page.evaluate(() => window.hearth.attachTerminal());
+          return {
+            lifecycle: stopped.session?.lifecycle ?? null,
+            exitCode: stopped.session?.exitCode ?? null
+          };
+        })
+        .toEqual({ lifecycle: "stopped", exitCode: null });
     } finally {
       try {
         const snapshot = await running.page.evaluate(() => window.hearth.attachTerminal());
@@ -3304,7 +3211,6 @@ test.describe.serial("continuity vertical slice", () => {
       .getByLabel("Rooms")
       .getByRole("button", { name: /Workshop/ })
       .click();
-    await running.page.getByRole("button", { name: "Terminal", exact: true }).click();
     await running.page
       .getByRole("button", { name: /^Open .*PowerShell/ })
       .click();

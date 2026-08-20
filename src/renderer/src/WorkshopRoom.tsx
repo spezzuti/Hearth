@@ -12,6 +12,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
+import { nativeTerminalKeySequence } from "./terminal-keyboard";
 import type {
   BootstrapData,
   AgentProviderStatus,
@@ -303,8 +304,48 @@ function TerminalViewport({
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(searchAddon);
     terminal.loadAddon(linksAddon);
+    const handleNativeTerminalShortcut = (event: globalThis.KeyboardEvent) => {
+      if (ownerRef.current !== "user") {
+        return;
+      }
+      const nativeSequence = nativeTerminalKeySequence(event);
+      if (nativeSequence === null) {
+        return;
+      }
+
+      // Workshop owns Claude Code's native shortcuts while its terminal is
+      // mounted. Catch this above xterm and Chromium focus traversal so a
+      // physical Shift+Tab cannot escape onto a nearby control first.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      terminal.focus();
+      void window.hearth.setTerminalKeyboardFocus(session.id);
+      void window.hearth
+        .terminalInput(session.id, nativeSequence)
+        .catch((reason: unknown) => {
+          onErrorRef.current(
+            reason instanceof Error
+              ? reason.message
+              : "The terminal rejected that shortcut."
+          );
+        });
+    };
+    document.addEventListener("keydown", handleNativeTerminalShortcut, true);
     terminal.open(host);
     terminalRef.current = terminal;
+    const keyboardInput = host.querySelector<HTMLTextAreaElement>(
+      ".xterm-helper-textarea"
+    );
+    const handleTerminalFocus = () => {
+      if (ownerRef.current === "user") {
+        void window.hearth.setTerminalKeyboardFocus(session.id);
+      }
+    };
+    const handleTerminalBlur = () => {
+      void window.hearth.setTerminalKeyboardFocus(null);
+    };
+    keyboardInput?.addEventListener("focus", handleTerminalFocus);
+    keyboardInput?.addEventListener("blur", handleTerminalBlur);
 
     const focusForTyping = () => {
       if (
@@ -312,6 +353,7 @@ function TerminalViewport({
         LIVE_STATES.has(lifecycleRef.current)
       ) {
         terminal.focus();
+        void window.hearth.setTerminalKeyboardFocus(session.id);
       }
     };
     const handleTerminalPointerDown = (event: PointerEvent) => {
@@ -488,6 +530,10 @@ function TerminalViewport({
       removeTerminalListener();
       host.removeEventListener("contextmenu", handleContextMenu);
       host.removeEventListener("pointerdown", handleTerminalPointerDown);
+      document.removeEventListener("keydown", handleNativeTerminalShortcut, true);
+      keyboardInput?.removeEventListener("focus", handleTerminalFocus);
+      keyboardInput?.removeEventListener("blur", handleTerminalBlur);
+      void window.hearth.setTerminalKeyboardFocus(null);
       searchAddonRef.current = null;
       terminalRef.current = null;
       terminal.dispose();
@@ -596,7 +642,14 @@ function MakerRail({
   onCancel,
   onInstruction,
   onNotify,
+  onFocusTerminal,
+  onReturnToTerminalProject,
+  onParkAndOpenSelectedProject,
+  projectName,
+  projectBranch,
+  projectMismatch,
   busy,
+  sameSession = false,
   managed = false,
   managedStatus = "Ready when you are."
 }: {
@@ -617,7 +670,14 @@ function MakerRail({
   onCancel: () => Promise<void>;
   onInstruction: (text: string) => Promise<void>;
   onNotify: (message: string) => void;
+  onFocusTerminal: () => void;
+  onReturnToTerminalProject: () => Promise<void>;
+  onParkAndOpenSelectedProject: () => Promise<void>;
+  projectName: string;
+  projectBranch: string | null;
+  projectMismatch: boolean;
   busy: boolean;
+  sameSession?: boolean;
   managed?: boolean;
   managedStatus?: string;
 }): ReactNode {
@@ -630,7 +690,6 @@ function MakerRail({
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const canRelay =
     session?.kind === "claude" &&
-    session.owner === "maker" &&
     LIVE_STATES.has(session.lifecycle);
   const preflightConsultation = proposal?.consultations.find(
     (consultation) => consultation.phase === "preflight"
@@ -639,13 +698,45 @@ function MakerRail({
     (consultation) => consultation.phase === "postflight"
   );
   const provider = providerLines(providerLabel);
+  const liveClaude = Boolean(
+    session?.kind === "claude" && LIVE_STATES.has(session.lifecycle)
+  );
+  const notebookHeadline = !session
+    ? "Workbench is clear."
+    : projectMismatch
+      ? "We’re looking at two different projects."
+      : observation.requiresInput
+        ? "I need you at the terminal."
+        : observation.state === "working"
+          ? "I’m on it."
+          : observation.state === "failed"
+            ? "Something went sideways."
+            : liveClaude
+              ? "Ready when you are."
+              : "Claude Code isn’t running yet.";
+  const notebookSummary = !session
+    ? `Open Claude Code when you want to work on ${projectName}.`
+    : projectMismatch
+      ? `The terminal is in ${session.cwd}, while Hearth has ${projectName} selected.`
+      : observation.summary ||
+        (liveClaude ? "The Claude Code session is ready at the prompt." : "The terminal is idle.");
+  const nextAction = projectMismatch
+    ? "Return to the matching project before giving the next instruction."
+    : observation.requiresInput
+      ? "Check the prompt and make the call."
+      : observation.state === "working"
+        ? "Let this run. If the direction changes, interrupt me in the terminal."
+        : liveClaude
+          ? "Tell me what we’re doing next in Claude Code."
+          : "Start or resume Claude Code in the workbench.";
+  const terminalProject = session?.cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? projectName;
 
   useEffect(() => {
     const messageList = messageListRef.current;
     if (!messageList || !followLatest) return;
-    messageList.scrollTop = messageList.scrollHeight;
+    messageList.scrollTop = sameSession ? 0 : messageList.scrollHeight;
     messageList.scrollLeft = 0;
-  }, [messages, busy, stream?.text, followLatest]);
+  }, [messages, busy, stream?.text, followLatest, sameSession]);
 
   useEffect(() => {
     setProposalInstruction(proposal?.instruction ?? "");
@@ -654,7 +745,7 @@ function MakerRail({
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
     const value = message.trim();
-    if (!value || busy) {
+    if (!value || (busy && !sameSession)) {
       return;
     }
     setMessage("");
@@ -722,7 +813,7 @@ function MakerRail({
   }
 
   return (
-    <aside className={`workshop-maker${managed ? " workshop-maker--managed" : ""}`}>
+    <aside className={`workshop-maker${managed ? " workshop-maker--managed" : ""}${sameSession ? " workshop-maker--notebook" : ""}`}>
       <div className="maker-rail-heading">
         <ResidentAvatar resident="maker" mood={busy ? "thinking" : "present"} />
         <div className="maker-heading-copy">
@@ -748,6 +839,8 @@ function MakerRail({
             ? busy
               ? managedStatus
               : "Ready when you are."
+            : sameSession && session?.kind === "claude" && LIVE_STATES.has(session.lifecycle)
+            ? "I’m right here in Claude Code."
             : observation.requiresInput
             ? "You’re needed."
             : session
@@ -756,7 +849,9 @@ function MakerRail({
               : "I’m alongside you."
             : "Nothing is running yet."}
         </strong>
-        {managed ? (
+        {sameSession ? (
+          <small>The terminal is our conversation. I’ll keep the useful bits organized here.</small>
+        ) : managed ? (
           <small>{busy ? "Working in the Claude session" : "Conversation stays here. Work stays beside me."}</small>
         ) : session ? (
           <div className="maker-runtime-line">
@@ -777,7 +872,62 @@ function MakerRail({
           setFollowLatest(target.scrollHeight - target.scrollTop - target.clientHeight < 48);
         }}
       >
-        {messages.slice(-40).map((item) => (
+        {sameSession ? (
+          <div className="maker-notebook">
+            <section className={`maker-notebook-lead is-${observation.state}`}>
+              <p className="eyebrow">Right now</p>
+              <h3>{notebookHeadline}</h3>
+              <p>{notebookSummary}</p>
+            </section>
+            <section className="maker-notebook-card">
+              <span>Current work</span>
+              <strong>{projectName}</strong>
+              <small>
+                {projectBranch ? `${projectBranch} · ` : ""}
+                {liveClaude ? `${terminalProject} open in Claude Code` : "Workbench ready"}
+              </small>
+            </section>
+            <section className="maker-notebook-card maker-notebook-card--next">
+              <span>Next sensible move</span>
+              <p>{nextAction}</p>
+            </section>
+            <div className="maker-notebook-actions">
+              {projectMismatch ? (
+                <>
+                  <button
+                    className="small-button small-button--quiet"
+                    type="button"
+                    onClick={() => void onReturnToTerminalProject()}
+                  >
+                    Stay with {terminalProject}
+                  </button>
+                  <button
+                    className="small-button"
+                    type="button"
+                    onClick={() => void onParkAndOpenSelectedProject()}
+                  >
+                    Park it · open {projectName}
+                  </button>
+                  <small>The live session stays attached to its own project.</small>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="small-button"
+                    type="button"
+                    disabled={!liveClaude}
+                    onClick={onFocusTerminal}
+                  >
+                    Talk in Claude Code
+                  </button>
+                  <small>
+                    {liveClaude ? "One conversation. One input." : "Start Claude Code in the workbench first."}
+                  </small>
+                </>
+              )}
+            </div>
+          </div>
+        ) : messages.slice(-40).map((item) => (
           <article
             className={
               item.role === "user"
@@ -797,7 +947,7 @@ function MakerRail({
             <p>{item.text}</p>
           </article>
         ))}
-        {stream?.text ? (
+        {!sameSession && stream?.text ? (
           <article className="maker-note maker-note--streaming">
             <div>
               <strong>Maker</strong>
@@ -805,7 +955,7 @@ function MakerRail({
             </div>
             <p>{stream.text}<span className="stream-caret" aria-hidden="true" /></p>
           </article>
-        ) : busy ? <div className="maker-thinking">Maker is thinking…</div> : null}
+        ) : !sameSession && busy ? <div className="maker-thinking">Maker is thinking…</div> : null}
         <div />
       </div>
       {!followLatest ? (
@@ -903,8 +1053,8 @@ function MakerRail({
               onClick={() => void passInstruction()}
               title={
                 canRelay
-                  ? "Pass this reviewed instruction into Claude Code"
-                  : "Give Maker control of a running Claude Code session first"
+                  ? "Pass this reviewed instruction into the same Claude Code session"
+                  : "Start or resume Claude Code first"
               }
             >
               Pass to Claude
@@ -1062,15 +1212,15 @@ function MakerRail({
           </div>
         </section>
       ) : null}
-      {!managed ? <form className="maker-rail-composer" onSubmit={(event) => void submit(event)}>
-        <label htmlFor="workshop-maker-message">Message Maker</label>
+      {!managed && !sameSession ? <form className="maker-rail-composer" onSubmit={(event) => void submit(event)}>
+        <label htmlFor="workshop-maker-message">{sameSession ? "Talk to Maker in Claude Code" : "Message Maker"}</label>
         <textarea
           id="workshop-maker-message"
           wrap="soft"
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={submitChatOnEnter}
-          placeholder="Talk it through or write a bounded instruction…"
+          placeholder={sameSession ? "Send this into Claude Code…" : "Talk it through or write a bounded instruction…"}
           maxLength={8_000}
         />
         <div>
@@ -1083,8 +1233,15 @@ function MakerRail({
               Stop
             </button>
           ) : (
-            <button className="small-button small-button--quiet" disabled={!message.trim() || busy}>
-              Talk
+            <button
+              className="small-button small-button--quiet"
+              disabled={
+                !message.trim() ||
+                (!sameSession && busy) ||
+                (sameSession && !(session?.kind === "claude" && LIVE_STATES.has(session.lifecycle)))
+              }
+            >
+              {sameSession ? "Send" : "Talk"}
             </button>
           )}
         </div>
@@ -2059,6 +2216,8 @@ export function WorkshopRoom({
   onCriticProposal,
   onOpenCritic,
   onNotify,
+  onReturnToTerminalProject,
+  onParkAndOpenSelectedProject,
   initialDraft,
   onGather
 }: {
@@ -2098,6 +2257,8 @@ export function WorkshopRoom({
   onCriticProposal: (proposalId: string) => Promise<void>;
   onOpenCritic: () => Promise<void>;
   onNotify: (message: string) => void;
+  onReturnToTerminalProject: () => Promise<void>;
+  onParkAndOpenSelectedProject: () => Promise<void>;
   initialDraft: { id: string; text: string } | null;
   onGather: () => void;
 }): ReactNode {
@@ -2105,13 +2266,6 @@ export function WorkshopRoom({
   const [makerBusy, setMakerBusy] = useState(false);
   const [terminalFocusRequest, setTerminalFocusRequest] = useState(0);
   const [stopConfirmationOpen, setStopConfirmationOpen] = useState(false);
-  const [workbench, setWorkbench] = useState<"maker" | "terminal">(() =>
-    proposal?.status === "draft" ||
-    proposal?.status === "passed" ||
-    (data.terminal.session && LIVE_STATES.has(data.terminal.session.lifecycle))
-      ? "terminal"
-      : "maker"
-  );
   const session = data.terminal.session;
   const isLive = Boolean(session && LIVE_STATES.has(session.lifecycle));
   const sessionProjectMismatch = Boolean(
@@ -2157,27 +2311,29 @@ export function WorkshopRoom({
   }
 
   async function talk(text: string): Promise<boolean> {
-    setMakerBusy(true);
+    if (!session || session.kind !== "claude" || !isLive) {
+      onNotify("Start or resume Claude Code before talking with Maker here.");
+      return false;
+    }
     try {
-      return await onTalk(text);
-    } finally {
-      setMakerBusy(false);
+      await window.hearth.terminalInput(session.id, `${text}\r`);
+      return true;
+    } catch (reason) {
+      onNotify(reason instanceof Error ? reason.message : "Claude Code rejected that message.");
+      return false;
     }
   }
 
-  async function changeOwner(owner: TerminalOwner): Promise<void> {
-    if (!session) return;
-    await onOwner(session.id, owner);
-    if (owner === "user") {
-      setTerminalFocusRequest((request) => request + 1);
-    }
-  }
+  useEffect(() => {
+    if (!session || !isLive || session.owner === "user") return;
+    void onOwner(session.id, "user");
+  }, [isLive, onOwner, session]);
 
   return (
     <main className="room-content workshop-room">
       <div className="workshop-heading">
         <div>
-          <p className="eyebrow">Workshop · managed work & terminal</p>
+          <p className="eyebrow">Workshop · Claude Code & Maker</p>
           <h1>Work with the process in view.</h1>
         </div>
         <div className="workshop-heading-actions">
@@ -2186,190 +2342,38 @@ export function WorkshopRoom({
               Gather in Living Room
             </button>
           ) : null}
-          <div className="workbench-switch" aria-label="Workshop surface">
-            <button
-              className={workbench === "maker" ? "is-active" : ""}
-              type="button"
-              onClick={() => setWorkbench("maker")}
-            >
-              Maker session
-            </button>
-            <button
-              className={workbench === "terminal" ? "is-active" : ""}
-              type="button"
-              onClick={() => {
-                setWorkbench("terminal");
-                if (session?.owner === "user" && isLive) {
-                  setTerminalFocusRequest((request) => request + 1);
-                }
-              }}
-            >
-              Terminal
-            </button>
-          </div>
-          <div className={`runtime-pill${workbench === "maker" || isLive ? " runtime-pill--live" : ""}`}>
-            <span className={workbench === "maker" || isLive ? "status-dot" : "status-dot status-dot--quiet"} />
+          <div className={`runtime-pill${isLive ? " runtime-pill--live" : ""}`}>
+            <span className={isLive ? "status-dot" : "status-dot status-dot--quiet"} />
             <div>
               <strong>
-                {workbench === "maker"
-                  ? working
-                    ? "Maker is working"
-                    : "Managed Maker ready"
-                  : isLive
-                    ? `${sessionLabel(session)} running`
-                    : "Terminal quiet"}
+                {isLive ? `${sessionLabel(session)} running` : "Claude Code ready"}
               </strong>
               <small>
-                {workbench === "maker"
-                  ? `${data.runtime.provider.residents?.maker
-                      ? residentProviderLabel(data.runtime.provider.residents.maker)
-                      : "Claude configured Opus"} · ACP session`
-                  : data.terminal.capabilities.claudeAvailable
+                {data.terminal.capabilities.claudeAvailable
                   ? `Claude Code ${data.terminal.capabilities.claudeVersion ?? "available"}`
                   : "Claude Code not detected"}
               </small>
             </div>
           </div>
-          {!focusMode && workbench === "terminal" ? (
-            <button
-              className="focus-button shelf-toggle"
-              type="button"
-              aria-pressed={shelfCollapsed}
-              title={
-                shelfCollapsed
-                  ? "Restore the session shelf"
-                  : "Hide the session shelf while keeping Maker beside the terminal"
+          <button
+            className="focus-button"
+            type="button"
+            onClick={() => {
+              onFocusMode(!focusMode);
+              if (session?.owner === "user" && isLive) {
+                setTerminalFocusRequest((request) => request + 1);
               }
-              onClick={() => onShelfCollapsed(!shelfCollapsed)}
-            >
-              {shelfCollapsed ? "Show sessions" : "Hide sessions"}
-            </button>
-          ) : null}
-          {workbench === "terminal" ? (
-            <button
-              className="focus-button"
-              type="button"
-              onClick={() => {
-                onFocusMode(!focusMode);
-                if (session?.owner === "user" && isLive) {
-                  setTerminalFocusRequest((request) => request + 1);
-                }
-              }}
-            >
-              {focusMode ? "Restore room" : "Focus terminal"}
-            </button>
-          ) : null}
+            }}
+          >
+            {focusMode ? "Restore room" : "Focus terminal"}
+          </button>
         </div>
       </div>
 
       <div
-        className={`workshop-layout${(shelfCollapsed || workbench === "maker") && !focusMode ? " workshop-layout--shelf-collapsed" : ""}`}
+        className={`workshop-layout${!focusMode ? " workshop-layout--shelf-collapsed" : ""}`}
       >
-        {!focusMode && !shelfCollapsed && workbench === "terminal" ? (
-          <aside className="session-shelf">
-            <section>
-              <p className="eyebrow">Session</p>
-              {session ? (
-                <button className="session-card is-active" type="button">
-                  <span className={`session-kind session-kind--${session.kind}`}>
-                    {session.kind === "claude" ? "C" : "›_"}
-                  </span>
-                  <div>
-                    <strong>{sessionLabel(session)}</strong>
-                    <small>
-                      {session.lifecycle} · {session.owner === "user" ? "your seat" : "Maker seat"}
-                      {sessionProjectMismatch ? " · another project" : ""}
-                    </small>
-                  </div>
-                  <i />
-                </button>
-              ) : (
-                <div className="session-empty">
-                  <span>›_</span>
-                  <p>Your first terminal will live here.</p>
-                </div>
-              )}
-            </section>
-
-            <section className="session-actions">
-              <p className="eyebrow">Open</p>
-              <button
-                type="button"
-                onClick={() => void start("powershell")}
-                disabled={busy || isLive}
-              >
-                <span>›_</span>
-                <div>
-                  <strong>{data.terminal.capabilities.shellName}</strong>
-                  <small>In {data.workspace.selectedProject.name}</small>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => void start("claude")}
-                disabled={busy || isLive || !data.terminal.capabilities.claudeAvailable}
-              >
-                <span className="claude-glyph">C</span>
-                <div>
-                  <strong>{resumeWasRejected ? "Start fresh Claude" : "Claude Code"}</strong>
-                  <small>
-                    {resumeWasRejected
-                      ? "Previous conversation was unavailable"
-                      : `Named ${data.workspace.selectedProject.name} session`}
-                  </small>
-                </div>
-              </button>
-              {canResume ? (
-                <button
-                  className="resume-session"
-                  type="button"
-                  onClick={() => void resume()}
-                  disabled={busy}
-                >
-                  <span>↻</span>
-                  <div>
-                    <strong>Resume Claude</strong>
-                    <small>{session.claudeName ?? "Previous session"}</small>
-                  </div>
-                </button>
-              ) : null}
-            </section>
-
-            <section className="capability-card">
-              <p className="eyebrow">Detected locally</p>
-              <div><span>Shell</span><strong>{data.terminal.capabilities.shellName}</strong></div>
-              <div><span>Claude</span><strong>{data.terminal.capabilities.claudeAvailable ? "Ready" : "Unavailable"}</strong></div>
-              <div><span>Persistence</span><strong>Named + resumable</strong></div>
-            </section>
-          </aside>
-        ) : null}
-
-        {workbench === "maker" ? (
-          <ClaudeWorkbench
-            projectName={data.workspace.selectedProject.name}
-            provider={data.runtime.provider}
-            turns={data.workshop.turns}
-            requestId={workRequestId}
-            activities={workActivities}
-            plan={workPlan}
-            thoughts={thoughts}
-            sessionState={sessionState}
-            turnHealth={turnHealth}
-            turnUsage={turnUsage}
-            contextManifest={contextManifest}
-            permissions={permissions}
-            messages={data.conversations.maker}
-            working={working && Boolean(workRequestId)}
-            busy={makerBusy || working}
-            onTalk={talk}
-            onConfigureSession={onConfigureSession}
-            onCancel={onCancelAgent}
-            onStartFresh={onStartFresh}
-            onPrepareReturnPack={onPrepareReturnPack}
-            onResolvePermission={onResolvePermission}
-            initialDraft={initialDraft}
-          />
-        ) : <section className="terminal-workbench">
+        <section className="terminal-workbench">
           <div className="terminal-toolbar">
             <div className="terminal-identity">
               <span className="terminal-lights" aria-hidden="true"><i /><i /><i /></span>
@@ -2382,25 +2386,28 @@ export function WorkshopRoom({
               </div>
             </div>
             <div className="terminal-controls">
-              {session ? (
-                <div className="control-switch" aria-label="Terminal control">
-                  <button
-                    className={session.owner === "user" ? "is-active" : ""}
-                    type="button"
-                    disabled={!isLive}
-                    onClick={() => void changeOwner("user")}
-                  >
-                    You
-                  </button>
-                  <button
-                    className={session.owner === "maker" ? "is-active" : ""}
-                    type="button"
-                    disabled={!isLive || session.kind !== "claude"}
-                    onClick={() => void changeOwner("maker")}
-                  >
-                    Maker
-                  </button>
-                </div>
+              {canResume ? (
+                <button
+                  className="resume-session"
+                  type="button"
+                  style={{
+                    appearance: "none",
+                    background: "linear-gradient(145deg, #3d716c, #295452)",
+                    border: "1px solid #6e9d91",
+                    borderRadius: 8,
+                    boxShadow: "inset 0 1px rgba(255, 255, 255, 0.16), 0 3px 9px rgba(0, 0, 0, 0.22)",
+                    color: "#f6f1e8"
+                  }}
+                  onClick={() => void resume()}
+                  disabled={busy}
+                >
+                  Resume Claude
+                </button>
+              ) : null}
+              {session && !isLive && !canResume ? (
+                <button type="button" onClick={() => void start("claude")} disabled={busy || !data.terminal.capabilities.claudeAvailable}>
+                  Start Claude Code
+                </button>
               ) : null}
               {session && isLive ? (
                 <button
@@ -2487,28 +2494,16 @@ export function WorkshopRoom({
             ) : null}
             <span>Ctrl+Shift+C/V · Ctrl+click links · output is not saved to memory</span>
           </footer>
-        </section>}
+        </section>
 
         {!focusMode ? (
           <MakerRail
-            messages={data.conversations.maker}
+            messages={[]}
             session={session}
             observation={data.terminal.observation}
-            providerLabel={
-              (data.runtime.provider.residents?.maker
-                ? residentProviderLabel(data.runtime.provider.residents.maker)
-                : null) ??
-              (data.runtime.provider.active === "claude-code"
-                ? data.runtime.provider.models.maker ?? "Claude configured Opus"
-                : "Local")
-            }
-            providerOnline={
-              data.runtime.provider.residents
-                ? data.runtime.provider.residents.maker.state === "ready"
-                : data.runtime.provider.active === "claude-code" &&
-                  data.runtime.provider.state === "ready"
-            }
-            stream={stream}
+            providerLabel="Claude Code"
+            providerOnline={Boolean(session?.kind === "claude" && isLive)}
+            stream={null}
             proposal={proposal}
             onUpdateProposal={onUpdateProposal}
             onDiscardProposal={onDiscardProposal}
@@ -2516,13 +2511,16 @@ export function WorkshopRoom({
             onCloseProposal={onCloseProposal}
             onCriticProposal={onCriticProposal}
             onOpenCritic={onOpenCritic}
-            busy={makerBusy || working}
-            managed={workbench === "maker"}
-            managedStatus={
-              workActivities.findLast((activity) => activity.status === "in_progress")?.title ??
-              workActivities.at(-1)?.title ??
-              "Working through it."
-            }
+            busy={Boolean(session?.kind === "claude" && data.terminal.observation.state === "working")}
+            sameSession
+            projectName={data.workspace.selectedProject.name}
+            projectBranch={data.workspace.selectedProject.branch}
+            projectMismatch={sessionProjectMismatch}
+            onFocusTerminal={() => {
+              setTerminalFocusRequest((request) => request + 1);
+            }}
+            onReturnToTerminalProject={onReturnToTerminalProject}
+            onParkAndOpenSelectedProject={onParkAndOpenSelectedProject}
             onTalk={talk}
             onCancel={onCancelAgent}
             onInstruction={async (text) => {

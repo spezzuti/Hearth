@@ -158,6 +158,8 @@ const api: HearthApi = {
     ipcRenderer.invoke("hearth:list-workspace-projects", refresh),
   selectWorkspaceProject: (projectId: string) =>
     ipcRenderer.invoke("hearth:select-workspace-project", projectId),
+  activateWorkspaceProject: (projectId: string) =>
+    ipcRenderer.invoke("hearth:activate-workspace-project", projectId),
   getWorkspaceProject: (projectId: string) =>
     ipcRenderer.invoke("hearth:get-workspace-project", projectId),
   listProjectDirectory: (projectId: string, projectPath: string) =>
@@ -200,6 +202,8 @@ const api: HearthApi = {
     ipcRenderer.invoke("hearth:read-project-diff", projectId, projectPath),
   attachTerminal: () => ipcRenderer.invoke("hearth:attach-terminal"),
   detachTerminal: () => ipcRenderer.invoke("hearth:detach-terminal"),
+  setTerminalKeyboardFocus: (sessionId: string | null) =>
+    ipcRenderer.invoke("hearth:set-terminal-keyboard-focus", sessionId),
   startTerminal: (kind: TerminalKind, owner: TerminalOwner) =>
     ipcRenderer.invoke("hearth:start-terminal", kind, owner),
   resumeTerminal: (owner: TerminalOwner) =>

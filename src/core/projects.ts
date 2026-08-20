@@ -556,8 +556,13 @@ export class ProjectManager {
     this.store = store;
     this.homeRoot = path.resolve(homeRoot);
     this.defaultRoot = path.resolve(defaultRoot);
-    const remembered = store.getWorkspaceSelection();
-    this.selectedRoot = remembered ? path.resolve(remembered) : this.defaultRoot;
+    const remembered = store.getWorkspaceSelectionRecord();
+    const lastWorked = store.getLatestTerminalSession();
+    this.selectedRoot = remembered
+      ? path.resolve(remembered.rootPath)
+      : lastWorked
+        ? path.resolve(lastWorked.cwd)
+        : this.defaultRoot;
   }
 
   selectedProject(): WorkspaceProjectSummary {
